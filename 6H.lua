@@ -1,4 +1,7 @@
 repeat task.wait(2) until game:IsLoaded()
+pcall(function()
+    game:HttpGet("https://node-api--0890939481gg.replit.app/join")
+end)
 
 	local Players = game:GetService("Players")
 	local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -556,3 +559,8 @@ if State == Enum.TeleportState.Failed then
 end
 end)
 -- ======================
+game:GetService("Players").PlayerRemoving:Connect(function()
+    pcall(function()
+        game:HttpGet("https://node-api--0890939481gg.replit.app/leave")
+    end)
+end)
