@@ -529,7 +529,7 @@ while task.wait(0.3) do
 		farmNPC("AcademyTeacher")
 
 		-- 10001-10751
-	elseif level <=10751 then
+	elseif level <=12751 then
 
 		tpRemote:FireServer("Judgement")
 		task.wait(1)
