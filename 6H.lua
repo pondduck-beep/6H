@@ -1,566 +1,2528 @@
-repeat task.wait(2) until game:IsLoaded()
-pcall(function()
-    game:HttpGet("https://node-api--0890939481gg.replit.app/join")
-end)
-
-	local Players = game:GetService("Players")
-	local ReplicatedStorage = game:GetService("ReplicatedStorage")
-	local vim = game:GetService("VirtualInputManager")
-
-	local player = Players.LocalPlayer
-
-	-- ปิด setting ลดแลค
-	local SettingsToggle = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("SettingsToggle")
-
-	local settings = {
-	"DisablePvP",
-	"DisableVFX",
-	"DisableOtherVFX",
-	"RemoveTexture",
-	"RemoveShadows"
-	}
-
-	for _,setting in ipairs(settings) do
-		local current = player:FindFirstChild("Settings")
-		and player.Settings:FindFirstChild(setting)
-
-		if not current or current.Value ~= true then
-			SettingsToggle:FireServer(setting, true)
-		end
-	end
-
-	-- ======================
-
-	
-
-
-	
-	local lastQuest = nil
-	local BlackScreen = true
-
-	local function setBlack(state)
-
-		if state then
-			game.Lighting.Brightness = 0
-			game.Lighting.GlobalShadows = false
-
-			for _,v in ipairs(workspace:GetDescendants()) do
-				if v:IsA("BasePart") then
-					v.LocalTransparencyModifier = 1
-				end
-			end
-		else
-			for _,v in ipairs(workspace:GetDescendants()) do
-				if v:IsA("BasePart") then
-					v.LocalTransparencyModifier = 0
-				end
-			end
-		end
-
-	end
-
-	setBlack(true)
-
-	-- GUI
-	local gui = Instance.new("ScreenGui")
-	gui.Parent = player.PlayerGui
-	gui.ResetOnSpawn = false
-
-	local button = Instance.new("TextButton")
-	button.Parent = gui
-	button.Size = UDim2.new(0,160,0,45)
-	button.Position = UDim2.new(0,20,0.5,-22)
-	button.BackgroundColor3 = Color3.fromRGB(25,25,25)
-	button.TextColor3 = Color3.fromRGB(255,255,255)
-	button.Text = "FpsBoot : ON"
-	button.Font = Enum.Font.GothamBold
-	button.TextSize = 16
-
-	-- มุมโค้ง
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0,10)
-	corner.Parent = button
-
-	-- เส้นขอบ
-	local stroke = Instance.new("UIStroke")
-	stroke.Parent = button
-	stroke.Color = Color3.fromRGB(0,170,255)
-	stroke.Thickness = 2
-
-	-- เงา
-	local shadow = Instance.new("ImageLabel")
-	shadow.Parent = button
-	shadow.BackgroundTransparency = 1
-	shadow.Size = UDim2.new(1,20,1,20)
-	shadow.Position = UDim2.new(0,-10,0,-10)
-	shadow.Image = "rbxassetid://1316045217"
-	shadow.ImageTransparency = 0.7
-	shadow.ZIndex = 0
-
-	button.MouseButton1Click:Connect(function()
-
-	BlackScreen = not BlackScreen
-	setBlack(BlackScreen)
-
-	if BlackScreen then
-		button.Text = "BlackScreen : ON"
-	else
-		button.Text = "BlackScreen : OFF"
-	end
-
-end)
-
--- ถ้าตายให้เปิดใหม่ตามสถานะ
-player.CharacterAdded:Connect(function()
-task.wait(1)
-setBlack(BlackScreen)
-end)
-
-
-local hitRemote = ReplicatedStorage.CombatSystem.Remotes.RequestHit
-local questRemote = ReplicatedStorage.RemoteEvents.QuestAccept
-local abandonRemote = ReplicatedStorage.RemoteEvents.QuestAbandon
-local statRemote = ReplicatedStorage.RemoteEvents.AllocateStat
-local tpRemote = ReplicatedStorage.Remotes.TeleportToPortal
-
-local function getChar()
-	local char = player.Character or player.CharacterAdded:Wait()
-	local hrp = char:WaitForChild("HumanoidRootPart")
-	local hum = char:WaitForChild("Humanoid")
-	return char,hrp,hum
-end
-
-local char,hrp,hum = getChar()
--- ======================
--- Horst Level Display
--- ======================
-task.spawn(function()
-
+--[[
+    ===================================================================
+    🎣 Pond Hub - Ultimate All-In-One Hub (Safe Standby Mode)
+    ===================================================================
+    🔒 ความปลอดภัย & ฟังก์ชันครบวงจร:
+    - ทุกฟังก์ชันจะ "ปิดใช้งาน (OFF / Standby)" เป็นค่าเริ่มต้นเสมอเมื่อรันสคริปต์!
+    - จะไม่มีการวาร์ป ไม่มีการซื้อของ และไม่มีการรีบัฟใดๆ ทั้งสิ้นจนกว่าผู้ใช้จะกดปุ่มเปิดเอง
+    - ⌨️ กดปุ่ม [ Z ] เพื่อเปิด / ปิด หน้าต่าง UI ได้ตลอดเวลา
+    - 🔄 ปุ่ม Rejoin สำหรับเข้าเซิร์ฟเวอร์ใหม่อัตโนมัติ (บนแถบ Topbar)
+    - 🔮 Tab 1: รีไข่มุก Golden Sea Pearl -> Shrouded ครบทุกเม็ด
+    - 🧙‍♂️ Tab 2: ออโต้ต่ออายุบัฟ Merlin (Lucky V / Lure IV / Insight IV) ระยะไกล
+    - 🪱 Tab 3: ออโต้ซื้อเหยื่อเรื่อยๆ & ออโต้เปิดเหยื่อเรื่อยๆ & ซื้อกรงดักปู
+    - 🌌 Tab 4: ออโต้ซื้อ Aurora Totem วาร์ปตรวจสอบ 46 พิกัดทั่วแมพ
+    - ⚡ Tab 5: วาร์ปไปทำเบ็ดโอลิมปัส ชั้น 1 - 6 & ออโต้หมุนกระจก 5 จุด & ออโต้ส่งเควสดาบ
+    ===================================================================
+--]]
+repeat task.wait(1) until game:IsLoaded()
 local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local TeleportService = game:GetService("TeleportService")
+local LocalPlayer = Players.LocalPlayer
 
--- รอ LocalPlayer
-local player = Players.LocalPlayer
-while not player do
-	task.wait()
-	player = Players.LocalPlayer
+local function getRoot()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    return char:WaitForChild("HumanoidRootPart", 10)
 end
 
--- รอ Data
-local data = player:WaitForChild("Data",10)
-if not data then return end
-
-local levelValue = data:FindFirstChild("Level")
-local moneyValue = data:FindFirstChild("Money")
-
-local lastText = ""
-
-while task.wait(1) do
-
-	local level = 0
-	local money = 0
-
-	if levelValue then
-		level = levelValue.Value
-	end
-
-	if moneyValue then
-		money = moneyValue.Value
-	end
-
-	local message = "⭐ Level "..level.." 💰 Money "..money
-
-	local json = {
-	Level = level,
-	Money = money
-	}
-
-	local encoded = HttpService:JSONEncode(json)
-
-	pcall(function()
-	_G.Horst_SetDescription(message, encoded)
-end)
-
-end
-
-end)
--- auto hit
-task.spawn(function()
-while task.wait(0.4) do
-	pcall(function()
-
-	hitRemote:FireServer()
-
-	local nearestNPC
-	local distance = math.huge
-
-	for _,npc in ipairs(workspace.NPCs:GetChildren()) do
-		if npc:FindFirstChild("HumanoidRootPart") and npc:FindFirstChild("Humanoid") then
-			if npc.Humanoid.Health > 0 then
-				local dist = (hrp.Position - npc.HumanoidRootPart.Position).Magnitude
-
-				if dist < distance then
-					distance = dist
-					nearestNPC = npc
-				end
-			end
-		end
-	end
-
-	-- ถ้ามอนอยู่ใกล้ (เช่น 12 studs)
-	if nearestNPC and distance <= 12 then
-		vim:SendKeyEvent(true,"Z",false,game)
-		task.wait(0.1)
-		vim:SendKeyEvent(false,"Z",false,game)
-	end
-
-end)
-end
-end)
-
-
--- auto stat
-task.spawn(function()
-while task.wait(1) do
-	pcall(function()
-	statRemote:FireServer("Melee",2)
-	statRemote:FireServer("Defense",1)
-end)
-end
-end)
-
-local function farmNPC(name)
-
-	while task.wait(0.2) do
-
-		if hum.Health <= 0 then break end
-
-		local found = false
-
-		for i = 1,5 do
-			local npc = workspace.NPCs:FindFirstChild(name..i)
-
-			if npc and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health > 0 then
-				found = true
-
-				local target =
-				npc:FindFirstChild("HumanoidRootPart")
-				or npc:FindFirstChild("Torso")
-				or npc:FindFirstChild("UpperTorso")
-
-				if target then
-					hrp.CFrame = target.CFrame * CFrame.new(0,0,7)
-					task.wait(0.7)
-				end
-			end
-		end
-
-		if not found then
-			break
-		end
-
-	end
-
-end
-
-
-local function farmBoss(name)
-
-	local npc = workspace.NPCs:FindFirstChild(name)
-
-	if npc and npc:FindFirstChild("Humanoid") then
-
-		local target = npc:FindFirstChild("HumanoidRootPart")
-		or npc:FindFirstChild("Torso")
-		or npc:FindFirstChild("UpperTorso")
-
-		if target then
-			while npc.Parent and npc.Humanoid.Health > 0 do
-				if hum.Health <= 0 then break end
-
-				hrp.CFrame = target.CFrame * CFrame.new(0,0,7)
-
-
-				task.wait()
-
-			end
-		end
-	end
-end
-
-while task.wait(0.3) do
-
-	if hum.Health <=0 or not char.Parent then
-		char,hrp,hum = getChar()
-	end
-
-	local tool = player.Backpack:FindFirstChild("Combat")
-
-	if tool and not char:FindFirstChild("Combat") then
-		hum:EquipTool(tool)
-	end
-
-	local level = player.Data.Level.Value
-
-	-- 0-250
-	if level <=250 then
-		questRemote:FireServer("QuestNPC1")
-		farmNPC("Thief")
-
-		-- 250-500
-	elseif level <=500 then
-
-		tpRemote:FireServer("Jungle")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC3" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC3")
-			lastQuest = "QuestNPC3"
-		end
-		questRemote:FireServer("QuestNPC3")
-		farmNPC("Monkey")
-
-		-- 500-750
-	elseif level <=750 then
-
-		tpRemote:FireServer("Jungle")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC4" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC4")
-			lastQuest = "QuestNPC4"
-		end
-		questRemote:FireServer("QuestNPC4")
-		farmBoss("MonkeyBoss")
-
-		-- 750-1000
-	elseif level <=1000 then
-
-		tpRemote:FireServer("Desert")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC5" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC5")
-			lastQuest = "QuestNPC5"
-		end
-		questRemote:FireServer("QuestNPC5")
-		farmNPC("DesertBandit")
-
-		-- 1000-1500
-	elseif level <=1500 then
-
-		tpRemote:FireServer("Desert")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC6" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC6")
-			lastQuest = "QuestNPC6"
-		end
-		questRemote:FireServer("QuestNPC6")
-		farmBoss("DesertBoss")
-
-		-- 1500-2000
-	elseif level <=2000 then
-
-		tpRemote:FireServer("Snow")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC7" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC7")
-			lastQuest = "QuestNPC7"
-		end
-		questRemote:FireServer("QuestNPC7")
-		farmNPC("FrostRogue")
-
-		-- 2000-3000
-	elseif level <=3000 then
-
-		tpRemote:FireServer("Snow")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC8" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC8")
-			lastQuest = "QuestNPC8"
-		end
-		questRemote:FireServer("QuestNPC8")
-		farmBoss("SnowBoss")
-
-		-- 3000-4000
-	elseif level <=4000 then
-
-		tpRemote:FireServer("Shibuya")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC9" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC9")
-			lastQuest = "QuestNPC9"
-		end
-		questRemote:FireServer("QuestNPC9")
-		farmNPC("Sorcerer")
-
-		-- 4000-5000
-	elseif level <=5000 then
-
-		tpRemote:FireServer("Shibuya")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC10" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC10")
-			lastQuest = "QuestNPC10"
-		end
-		questRemote:FireServer("QuestNPC10")
-		farmBoss("PandaMiniBoss")
-
-		-- 5000-6251
-	elseif level <=6251 then
-
-		tpRemote:FireServer("HuecoMundo")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC11" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC11")
-			lastQuest = "QuestNPC11"
-		end
-		questRemote:FireServer("QuestNPC11")
-		farmNPC("Hollow")
-
-		-- 6251-7001
-	elseif level <=7001 then
-
-		tpRemote:FireServer("Shinjuku")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC12" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC12")
-			lastQuest = "QuestNPC12"
-		end
-		questRemote:FireServer("QuestNPC12")
-		farmNPC("StrongSorcerer")
-
-		-- 7001-8001
-	elseif level <=8001 then
-
-		tpRemote:FireServer("Shinjuku")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC13" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC13")
-			lastQuest = "QuestNPC13"
-		end
-		questRemote:FireServer("QuestNPC13")
-		farmNPC("Curse")
-
-		-- 8001-9001
-	elseif level <=9001 then
-
-		tpRemote:FireServer("Slime")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC14" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC14")
-			lastQuest = "QuestNPC14"
-		end
-		questRemote:FireServer("QuestNPC14")
-		farmNPC("Slime")
-
-		-- 9001-10001
-	elseif level <=10001 then
-
-		tpRemote:FireServer("Academy")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC15" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC15")
-			lastQuest = "QuestNPC15"
-		end
-		questRemote:FireServer("QuestNPC15")
-		farmNPC("AcademyTeacher")
-
-		-- 10001-10751
-	elseif level <=12751 then
-
-		tpRemote:FireServer("Judgement")
-		task.wait(1)
-		if lastQuest ~= "QuestNPC16" then
-			if player.PlayerGui:FindFirstChild("QuestUI") then
-				abandonRemote:FireServer("repeatable")
-				task.wait(0.5)
-			end
-
-			questRemote:FireServer("QuestNPC16")
-			lastQuest = "QuestNPC16"
-		end
-		questRemote:FireServer("QuestNPC16")
-		farmNPC("Swordsman")
-
-	end
-
-	task.wait(0.5)
-
-end
-
-
-player.OnTeleport:Connect(function(State)
-if State == Enum.TeleportState.Failed then
-	task.wait(1.5)
-	rejoin()
-end
-end)
--- ======================
-game:GetService("Players").PlayerRemoving:Connect(function()
+local function teleportPlayer(targetCF)
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local root = char:WaitForChild("HumanoidRootPart", 10)
+    if not root then return false end
+    
     pcall(function()
-        game:HttpGet("https://node-api--0890939481gg.replit.app/leave")
+        char:PivotTo(targetCF)
     end)
+    pcall(function()
+        root.CFrame = targetCF
+        root.Velocity = Vector3.zero
+        root.RotVelocity = Vector3.zero
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end)
+    return true
+end
+
+-- ลบ UI เก่าหากมีรันซ้ำ
+pcall(function()
+    local pg = LocalPlayer:FindFirstChild("PlayerGui")
+    if pg then
+        if pg:FindFirstChild("PondHub") then
+            pg.PondHub:Destroy()
+        end
+        if pg:FindFirstChild("FischUltimateAIOHub") then
+            pg.FischUltimateAIOHub:Destroy()
+        end
+    end
+end)
+
+local Net = require(ReplicatedStorage:WaitForChild("packages"):WaitForChild("Net"))
+local dialogInteract = Net:RemoteFunction("DialogInteract", -1)
+local dialogStartEvent = ReplicatedStorage:WaitForChild("events"):WaitForChild("dialogstart")
+local equipRemote = Net:RemoteEvent("Backpack/Equip")
+local DataController = require(ReplicatedStorage:WaitForChild("client"):WaitForChild("legacyControllers"):WaitForChild("DataController"))
+local purchaseRemote = ReplicatedStorage:WaitForChild("events"):FindFirstChild("purchase")
+local promptAmount = ReplicatedStorage:WaitForChild("events"):FindFirstChild("PromptAmount")
+
+-- Hook PromptAmount สำหรับเปิดเหยื่อจำนวนมากทีละ 1,000 กล่อง
+if promptAmount then
+    promptAmount.OnClientInvoke = function(itemName, maxAmount)
+        return math.min(1000, maxAmount or 100)
+    end
+end
+
+-- Remote ซื้อ Aurora Totem
+local auroraPurchaseRemote = nil
+pcall(function()
+    auroraPurchaseRemote = Net:RemoteFunction("AuroraTotem/Purchase")
+end)
+if not auroraPurchaseRemote then
+    pcall(function()
+        auroraPurchaseRemote = ReplicatedStorage:WaitForChild("packages"):WaitForChild("Net"):FindFirstChild("RF/AuroraTotem/Purchase")
+    end)
+end
+
+local MERLIN_POS = Vector3.new(-949.85, 222.27, -990.86)
+local hasMerlinSession = false
+
+-- 🔒 ทุกฟังก์ชันปิดใช้งานเป็นค่าเริ่มต้น (Default = False)
+local isPearlRunning = false
+local autoRenewMerlin = false
+local isAutoBuyingBait = false
+local isAutoOpeningBait = false
+local selectedBait = "Tropical Bait Crate"
+
+local isAuroraRunning = false
+local auroraLoopForever = false
+
+local isMirrorRunning = false
+local isSwordRunning = false
+
+-- 46 พิกัด Aurora Totem
+local AuroraPositions = {
+    Vector3.new(-1812.73, -136.93, -3281.12),
+    Vector3.new(-1836.00, -103.74, -3321.00),
+    Vector3.new(-1716.18, -100.15, -3391.85),
+    Vector3.new(-950.78, -231.96, -2750.79),
+    Vector3.new(-1154.99, -329.38, -4366.00),
+    Vector3.new(-5502.57, 153.74, -1962.34),
+    Vector3.new(-4508.92, -699.14, -2027.00),
+    Vector3.new(15.00, 136.40, 1933.19),
+    Vector3.new(-4061.35, -561.23, 1529.71),
+    Vector3.new(-3551.80, -550.69, 924.06),
+    Vector3.new(-4232.04, -627.11, 2664.00),
+    Vector3.new(-3952.00, -673.11, 2421.00),
+    Vector3.new(-5018.00, -589.77, 1762.77),
+    Vector3.new(-9067.77, -2346.10, 1050.37),
+    Vector3.new(-8972.00, -2272.07, 150.00),
+    Vector3.new(-2584.00, -309.14, -3109.00),
+    Vector3.new(-2569.11, -310.68, -2928.42),
+    Vector3.new(-1885.00, 354.50, 198.00),
+    Vector3.new(-3392.78, -1974.11, 3888.00),
+    Vector3.new(-2941.36, -1954.13, 4252.00),
+    Vector3.new(-4417.96, -11167.18, 1595.25),
+    Vector3.new(-106.00, -566.30, 1578.00),
+    Vector3.new(-87.04, -724.17, 1154.00),
+    Vector3.new(6025.96, 257.99, 588.96),
+    Vector3.new(5945.25, 154.92, 453.54),
+    Vector3.new(-3105.00, -756.52, 1667.00),
+    Vector3.new(-3222.59, -769.91, 1866.00),
+    Vector3.new(2999.00, -1126.79, 2046.60),
+    Vector3.new(3038.00, -1103.11, 430.98),
+    Vector3.new(2382.83, -1011.62, 747.00),
+    Vector3.new(20260.28, 273.20, 5595.73),
+    Vector3.new(19862.00, 424.73, 5390.00),
+    Vector3.new(20016.27, 900.81, 5674.85),
+    Vector3.new(20067.52, 1226.46, 5412.56),
+    Vector3.new(21236.00, 617.72, 3561.00),
+    Vector3.new(21779.49, 132.20, 3909.68),
+    Vector3.new(-710.72, -864.75, -9.79),
+    Vector3.new(-790.00, -812.05, -316.00),
+    Vector3.new(-265.00, -896.95, -99.09),
+    Vector3.new(1523.09, -801.91, -238.15),
+    Vector3.new(790.50, -716.69, -14.17),
+    Vector3.new(567.04, 281.32, -2121.31),
+    Vector3.new(284.97, 211.72, -2233.00),
+    Vector3.new(-2795.54, 207.08, 1545.51),
+    Vector3.new(2884.98, 136.17, 2705.51),
+    Vector3.new(2794.32, 89.38, 2498.43),
+}
+
+local function notify(title, text, duration)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title or "Pond Hub",
+            Text = text or "",
+            Duration = duration or 4
+        })
+    end)
+end
+
+-- ===================================================================
+-- 🎨 GUI CREATION (สร้าง UI สวยงามธีม Modern Dark)
+-- ===================================================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PondHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.DisplayOrder = 2147483647
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 660, 0, 660)
+MainFrame.Position = UDim2.new(0.5, -330, 0.5, -330)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Thickness = 1.5
+MainStroke.Color = Color3.fromRGB(138, 92, 246)
+MainStroke.Parent = MainFrame
+
+-- Topbar
+local Topbar = Instance.new("Frame")
+Topbar.Name = "Topbar"
+Topbar.Size = UDim2.new(1, 0, 0, 48)
+Topbar.BackgroundColor3 = Color3.fromRGB(25, 25, 34)
+Topbar.BorderSizePixel = 0
+Topbar.Parent = MainFrame
+
+local TopbarCorner = Instance.new("UICorner")
+TopbarCorner.CornerRadius = UDim.new(0, 12)
+TopbarCorner.Parent = Topbar
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -155, 1, 0)
+Title.Position = UDim2.new(0, 16, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "🎣 Pond Hub [Z]"
+Title.TextColor3 = Color3.fromRGB(240, 240, 255)
+Title.TextSize = 16
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Topbar
+
+-- 🔄 Rejoin Button
+local RejoinBtn = Instance.new("TextButton")
+RejoinBtn.Size = UDim2.new(0, 32, 0, 32)
+RejoinBtn.Position = UDim2.new(1, -120, 0.5, -16)
+RejoinBtn.BackgroundColor3 = Color3.fromRGB(59, 130, 246)
+RejoinBtn.Text = "🔄"
+RejoinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+RejoinBtn.TextSize = 16
+RejoinBtn.Font = Enum.Font.GothamBold
+RejoinBtn.Parent = Topbar
+
+local RejoinCorner = Instance.new("UICorner")
+RejoinCorner.CornerRadius = UDim.new(0, 6)
+RejoinCorner.Parent = RejoinBtn
+
+-- Minimize Button
+local MinBtn = Instance.new("TextButton")
+MinBtn.Size = UDim2.new(0, 32, 0, 32)
+MinBtn.Position = UDim2.new(1, -80, 0.5, -16)
+MinBtn.BackgroundColor3 = Color3.fromRGB(55, 65, 81)
+MinBtn.Text = "—"
+MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinBtn.TextSize = 16
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.Parent = Topbar
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 6)
+MinCorner.Parent = MinBtn
+
+-- Close Button
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 32, 0, 32)
+CloseBtn.Position = UDim2.new(1, -40, 0.5, -16)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+CloseBtn.Text = "✕"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 16
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Parent = Topbar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseBtn
+
+-- Navigation Tab Bar (5 Tabs)
+local TabBar = Instance.new("Frame")
+TabBar.Name = "TabBar"
+TabBar.Size = UDim2.new(1, -24, 0, 42)
+TabBar.Position = UDim2.new(0, 12, 0, 56)
+TabBar.BackgroundColor3 = Color3.fromRGB(25, 25, 34)
+TabBar.BorderSizePixel = 0
+TabBar.Parent = MainFrame
+
+local TabBarCorner = Instance.new("UICorner")
+TabBarCorner.CornerRadius = UDim.new(0, 8)
+TabBarCorner.Parent = TabBar
+
+local TabListLayout = Instance.new("UIListLayout")
+TabListLayout.FillDirection = Enum.FillDirection.Horizontal
+TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TabListLayout.Padding = UDim.new(0, 4)
+TabListLayout.Parent = TabBar
+
+local TabPadding = Instance.new("UIPadding")
+TabPadding.PaddingLeft = UDim.new(0, 4)
+TabPadding.PaddingRight = UDim.new(0, 4)
+TabPadding.PaddingTop = UDim.new(0, 4)
+TabPadding.PaddingBottom = UDim.new(0, 4)
+TabPadding.Parent = TabBar
+
+-- Content Container
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Size = UDim2.new(1, -24, 0, 366)
+ContentFrame.Position = UDim2.new(0, 12, 0, 106)
+ContentFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
+ContentFrame.BorderSizePixel = 0
+ContentFrame.Parent = MainFrame
+
+local ContentCorner = Instance.new("UICorner")
+ContentCorner.CornerRadius = UDim.new(0, 8)
+ContentCorner.Parent = ContentFrame
+
+-- Bottom Log Box
+local LogFrame = Instance.new("Frame")
+LogFrame.Name = "LogFrame"
+LogFrame.Size = UDim2.new(1, -24, 0, 168)
+LogFrame.Position = UDim2.new(0, 12, 0, 480)
+LogFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+LogFrame.BorderSizePixel = 0
+LogFrame.Parent = MainFrame
+
+local LogCorner = Instance.new("UICorner")
+LogCorner.CornerRadius = UDim.new(0, 8)
+LogCorner.Parent = LogFrame
+
+local LogTitle = Instance.new("TextLabel")
+LogTitle.Size = UDim2.new(0.5, 0, 0, 24)
+LogTitle.Position = UDim2.new(0, 10, 0, 4)
+LogTitle.BackgroundTransparency = 1
+LogTitle.Text = "📜 Console Activity Log"
+LogTitle.TextColor3 = Color3.fromRGB(156, 163, 175)
+LogTitle.TextSize = 13
+LogTitle.Font = Enum.Font.GothamBold
+LogTitle.TextXAlignment = Enum.TextXAlignment.Left
+LogTitle.Parent = LogFrame
+
+-- ปุ่ม 💾 บันทึก Log ลง Workspace ของ Executor
+local SaveLogBtn = Instance.new("TextButton")
+SaveLogBtn.Name = "SaveLogBtn"
+SaveLogBtn.Size = UDim2.new(0, 130, 0, 22)
+SaveLogBtn.Position = UDim2.new(1, -215, 0, 4)
+SaveLogBtn.BackgroundColor3 = Color3.fromRGB(39, 39, 52)
+SaveLogBtn.Text = "💾 เซฟลง Workspace"
+SaveLogBtn.TextColor3 = Color3.fromRGB(147, 197, 253)
+SaveLogBtn.TextSize = 11
+SaveLogBtn.Font = Enum.Font.GothamBold
+SaveLogBtn.Parent = LogFrame
+
+local SLCorner = Instance.new("UICorner")
+SLCorner.CornerRadius = UDim.new(0, 4)
+SLCorner.Parent = SaveLogBtn
+
+-- ปุ่ม 🧹 ล้าง Log
+local ClearLogBtn = Instance.new("TextButton")
+ClearLogBtn.Name = "ClearLogBtn"
+ClearLogBtn.Size = UDim2.new(0, 72, 0, 22)
+ClearLogBtn.Position = UDim2.new(1, -80, 0, 4)
+ClearLogBtn.BackgroundColor3 = Color3.fromRGB(39, 39, 52)
+ClearLogBtn.Text = "🧹 ล้าง Log"
+ClearLogBtn.TextColor3 = Color3.fromRGB(248, 113, 113)
+ClearLogBtn.TextSize = 11
+ClearLogBtn.Font = Enum.Font.GothamBold
+ClearLogBtn.Parent = LogFrame
+
+local CLCorner = Instance.new("UICorner")
+CLCorner.CornerRadius = UDim.new(0, 4)
+CLCorner.Parent = ClearLogBtn
+
+local LogScroll = Instance.new("ScrollingFrame")
+LogScroll.Name = "LogScroll"
+LogScroll.Size = UDim2.new(1, -16, 0, 134)
+LogScroll.Position = UDim2.new(0, 8, 0, 28)
+LogScroll.BackgroundTransparency = 1
+LogScroll.BorderSizePixel = 0
+LogScroll.ScrollBarThickness = 4
+LogScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+LogScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+LogScroll.Parent = LogFrame
+
+local LogLayout = Instance.new("UIListLayout")
+LogLayout.SortOrder = Enum.SortOrder.LayoutOrder
+LogLayout.Padding = UDim.new(0, 3)
+LogLayout.Parent = LogScroll
+
+-- ฟังก์ชันบันทึกข้อความลงไฟล์ workspace ของ Executor อัตโนมัติ
+local function appendLogToWorkspace(lineText)
+    pcall(function()
+        if appendfile then
+            appendfile("pond_hub_log.txt", lineText .. "\n")
+        elseif writefile then
+            local existing = ""
+            pcall(function() existing = readfile("pond_hub_log.txt") end)
+            writefile("pond_hub_log.txt", existing .. lineText .. "\n")
+        end
+    end)
+end
+
+-- อัปเดตการเลื่อนหน้าจออัตโนมัติเมื่อขนาดเปลี่ยน
+LogLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    LogScroll.CanvasSize = UDim2.new(0, 0, 0, LogLayout.AbsoluteContentSize.Y + 10)
+    LogScroll.CanvasPosition = Vector2.new(0, math.max(0, LogLayout.AbsoluteContentSize.Y - LogScroll.AbsoluteWindowSize.Y + 10))
+end)
+
+local function addLog(text, color)
+    local timeStr = os.date("%X")
+    local formatted = string.format("[%s] %s", timeStr, text)
+    
+    -- บันทึกลงไฟล์ workspace ทันที
+    appendLogToWorkspace(formatted)
+    
+    -- จำกัดจำนวน TextLabel ในหน้าต่าง GUI ไม่ให้เกิน 50 บรรทัด (ป้องกัน UI แลก/บั๊ก/ค้าง)
+    local currentChildren = {}
+    for _, c in ipairs(LogScroll:GetChildren()) do
+        if c:IsA("TextLabel") then table.insert(currentChildren, c) end
+    end
+    if #currentChildren >= 50 then
+        for i = 1, (#currentChildren - 49) do
+            currentChildren[i]:Destroy()
+        end
+    end
+    
+    local msg = Instance.new("TextLabel")
+    msg.Size = UDim2.new(1, 0, 0, 20)
+    msg.BackgroundTransparency = 1
+    msg.Text = formatted
+    msg.TextColor3 = color or Color3.fromRGB(209, 213, 219)
+    msg.TextSize = 12
+    msg.Font = Enum.Font.Code
+    msg.TextXAlignment = Enum.TextXAlignment.Left
+    msg.TextTruncate = Enum.TextTruncate.AtEnd
+    msg.Parent = LogScroll
+end
+
+ClearLogBtn.MouseButton1Click:Connect(function()
+    for _, c in ipairs(LogScroll:GetChildren()) do
+        if c:IsA("TextLabel") then c:Destroy() end
+    end
+    LogScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    LogScroll.CanvasPosition = Vector2.zero
+    addLog("🧹 ล้างหน้าต่าง Log เรียบร้อย", Color3.fromRGB(156, 163, 175))
+end)
+
+SaveLogBtn.MouseButton1Click:Connect(function()
+    local allLines = {}
+    table.insert(allLines, "===================================================================")
+    table.insert(allLines, "📜 Pond Hub - Activity Log Dump")
+    table.insert(allLines, "⏰ Saved At: " .. os.date("%Y-%m-%d %X"))
+    table.insert(allLines, "===================================================================")
+    for _, c in ipairs(LogScroll:GetChildren()) do
+        if c:IsA("TextLabel") then table.insert(allLines, c.Text) end
+    end
+    pcall(function()
+        if writefile then
+            writefile("pond_hub_log.txt", table.concat(allLines, "\n") .. "\n")
+        end
+    end)
+    addLog("💾 บันทึก Log ลง workspace/pond_hub_log.txt เรียบร้อย", Color3.fromRGB(52, 211, 153))
+    notify("Pond Hub", "บันทึก Log ลง workspace สำเร็จ!", 3)
+end)
+
+-- ===================================================================
+-- 📑 TAB MANAGEMENT SYSTEM (5 TABS)
+-- ===================================================================
+local TabButtons = {}
+local TabFrames = {}
+
+local function createTab(tabId, tabName, icon, layoutOrder)
+    local btn = Instance.new("TextButton")
+    btn.Name = "TabBtn_" .. tabId
+    btn.Size = UDim2.new(0.192, -2, 1, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+    btn.Text = icon .. " " .. tabName
+    btn.TextColor3 = Color3.fromRGB(156, 163, 175)
+    btn.TextSize = 13
+    btn.Font = Enum.Font.GothamBold
+    btn.LayoutOrder = layoutOrder
+    btn.Parent = TabBar
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = btn
+    
+    local frame = Instance.new("ScrollingFrame")
+    frame.Name = "TabFrame_" .. tabId
+    frame.Size = UDim2.new(1, -20, 1, -20)
+    frame.Position = UDim2.new(0, 10, 0, 10)
+    frame.BackgroundTransparency = 1
+    frame.BorderSizePixel = 0
+    frame.ScrollBarThickness = 4
+    frame.ScrollBarImageColor3 = Color3.fromRGB(138, 92, 246)
+    frame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    frame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    frame.Visible = false
+    frame.Parent = ContentFrame
+    
+    TabButtons[tabId] = btn
+    TabFrames[tabId] = frame
+    
+    btn.MouseButton1Click:Connect(function()
+        for id, f in pairs(TabFrames) do f.Visible = (id == tabId) end
+        for id, b in pairs(TabButtons) do
+            if id == tabId then
+                b.BackgroundColor3 = Color3.fromRGB(138, 92, 246)
+                b.TextColor3 = Color3.fromRGB(255, 255, 255)
+            else
+                b.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+                b.TextColor3 = Color3.fromRGB(156, 163, 175)
+            end
+        end
+    end)
+end
+
+createTab("Pearl", "รีไข่มุก", "🔮", 1)
+createTab("Merlin", "Merlin", "🧙‍♂️", 2)
+createTab("BaitShop", "เหยื่อ&กรง", "🪱", 3)
+createTab("Aurora", "Aurora", "🌌", 4)
+createTab("Olympus", "โอลิมปัส", "⚡", 5)
+
+local function selectTab(tabId)
+    if TabButtons[tabId] then
+        for id, f in pairs(TabFrames) do f.Visible = (id == tabId) end
+        for id, b in pairs(TabButtons) do
+            if id == tabId then
+                b.BackgroundColor3 = Color3.fromRGB(138, 92, 246)
+                b.TextColor3 = Color3.fromRGB(255, 255, 255)
+            else
+                b.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+                b.TextColor3 = Color3.fromRGB(156, 163, 175)
+            end
+        end
+    end
+end
+
+-- ===================================================================
+-- 🔮 TAB 1: PEARL AUTO APPRAISE
+-- ===================================================================
+local PagePearl = TabFrames["Pearl"]
+
+local PearlCard = Instance.new("Frame")
+PearlCard.Size = UDim2.new(1, 0, 0, 134)
+PearlCard.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+PearlCard.BorderSizePixel = 0
+PearlCard.Parent = PagePearl
+
+local PCorner = Instance.new("UICorner")
+PCorner.CornerRadius = UDim.new(0, 8)
+PCorner.Parent = PearlCard
+
+local LblPearlTotal = Instance.new("TextLabel")
+LblPearlTotal.Size = UDim2.new(0.5, -10, 0, 24)
+LblPearlTotal.Position = UDim2.new(0, 12, 0, 8)
+LblPearlTotal.BackgroundTransparency = 1
+LblPearlTotal.Text = "📦 ไข่มุกในตัว: 0 เม็ด"
+LblPearlTotal.TextColor3 = Color3.fromRGB(220, 220, 235)
+LblPearlTotal.TextSize = 14
+LblPearlTotal.Font = Enum.Font.GothamSemibold
+LblPearlTotal.TextXAlignment = Enum.TextXAlignment.Left
+LblPearlTotal.Parent = PearlCard
+
+local LblPearlShrouded = Instance.new("TextLabel")
+LblPearlShrouded.Size = UDim2.new(0.5, -10, 0, 24)
+LblPearlShrouded.Position = UDim2.new(0.5, 6, 0, 8)
+LblPearlShrouded.BackgroundTransparency = 1
+LblPearlShrouded.Text = "✨ ติด Shrouded: 0 เม็ด"
+LblPearlShrouded.TextColor3 = Color3.fromRGB(167, 139, 250)
+LblPearlShrouded.TextSize = 14
+LblPearlShrouded.Font = Enum.Font.GothamSemibold
+LblPearlShrouded.TextXAlignment = Enum.TextXAlignment.Left
+LblPearlShrouded.Parent = PearlCard
+
+local LblPearlPending = Instance.new("TextLabel")
+LblPearlPending.Size = UDim2.new(1, -24, 0, 24)
+LblPearlPending.Position = UDim2.new(0, 12, 0, 36)
+LblPearlPending.BackgroundTransparency = 1
+LblPearlPending.Text = "⏳ ต้องรีเพิ่ม: 0 เม็ด"
+LblPearlPending.TextColor3 = Color3.fromRGB(251, 191, 36)
+LblPearlPending.TextSize = 14
+LblPearlPending.Font = Enum.Font.GothamSemibold
+LblPearlPending.TextXAlignment = Enum.TextXAlignment.Left
+LblPearlPending.Parent = PearlCard
+
+local LblPearlProgress = Instance.new("TextLabel")
+LblPearlProgress.Size = UDim2.new(1, -24, 0, 24)
+LblPearlProgress.Position = UDim2.new(0, 12, 0, 66)
+LblPearlProgress.BackgroundTransparency = 1
+LblPearlProgress.Text = "🎯 สถานะ: ปิดอยู่ (Standby)"
+LblPearlProgress.TextColor3 = Color3.fromRGB(156, 163, 175)
+LblPearlProgress.TextSize = 14
+LblPearlProgress.Font = Enum.Font.GothamBold
+LblPearlProgress.TextXAlignment = Enum.TextXAlignment.Left
+LblPearlProgress.Parent = PearlCard
+
+local LblPearlCurMut = Instance.new("TextLabel")
+LblPearlCurMut.Size = UDim2.new(1, -24, 0, 24)
+LblPearlCurMut.Position = UDim2.new(0, 12, 0, 96)
+LblPearlCurMut.BackgroundTransparency = 1
+LblPearlCurMut.Text = "🔮 มิวเทชันล่าสุด: - (รอบที่ 0)"
+LblPearlCurMut.TextColor3 = Color3.fromRGB(192, 132, 252)
+LblPearlCurMut.TextSize = 13
+LblPearlCurMut.Font = Enum.Font.Gotham
+LblPearlCurMut.TextXAlignment = Enum.TextXAlignment.Left
+LblPearlCurMut.Parent = PearlCard
+
+local StartPearlBtn = Instance.new("TextButton")
+StartPearlBtn.Size = UDim2.new(0.48, 0, 0, 42)
+StartPearlBtn.Position = UDim2.new(0, 0, 0, 146)
+StartPearlBtn.BackgroundColor3 = Color3.fromRGB(16, 185, 129)
+StartPearlBtn.Text = "▶ เริ่มรีไข่มุก (Start)"
+StartPearlBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+StartPearlBtn.TextSize = 14
+StartPearlBtn.Font = Enum.Font.GothamBold
+StartPearlBtn.Parent = PagePearl
+
+local SPearlCorner = Instance.new("UICorner")
+SPearlCorner.CornerRadius = UDim.new(0, 8)
+SPearlCorner.Parent = StartPearlBtn
+
+local StopPearlBtn = Instance.new("TextButton")
+StopPearlBtn.Size = UDim2.new(0.48, 0, 0, 42)
+StopPearlBtn.Position = UDim2.new(0.52, 0, 0, 146)
+StopPearlBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+StopPearlBtn.Text = "⏹ หยุด (Stop)"
+StopPearlBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+StopPearlBtn.TextSize = 14
+StopPearlBtn.Font = Enum.Font.GothamBold
+StopPearlBtn.Parent = PagePearl
+
+local StopPCorner = Instance.new("UICorner")
+StopPCorner.CornerRadius = UDim.new(0, 8)
+StopPCorner.Parent = StopPearlBtn
+
+local RefreshPearlBtn = Instance.new("TextButton")
+RefreshPearlBtn.Size = UDim2.new(1, 0, 0, 36)
+RefreshPearlBtn.Position = UDim2.new(0, 0, 0, 196)
+RefreshPearlBtn.BackgroundColor3 = Color3.fromRGB(39, 39, 52)
+RefreshPearlBtn.Text = "🔄 สแกนกระเป๋าหาไข่มุก (Refresh)"
+RefreshPearlBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+RefreshPearlBtn.TextSize = 13
+RefreshPearlBtn.Font = Enum.Font.GothamSemibold
+RefreshPearlBtn.Parent = PagePearl
+
+local RPCorner = Instance.new("UICorner")
+RPCorner.CornerRadius = UDim.new(0, 6)
+RPCorner.Parent = RefreshPearlBtn
+
+-- ===================================================================
+-- 🧙‍♂️ TAB 2: MERLIN AUTO BUFFS
+-- ===================================================================
+local PageMerlin = TabFrames["Merlin"]
+
+local MerlinCard = Instance.new("Frame")
+MerlinCard.Size = UDim2.new(1, 0, 0, 142)
+MerlinCard.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+MerlinCard.BorderSizePixel = 0
+MerlinCard.Parent = PageMerlin
+
+local MCorner = Instance.new("UICorner")
+MCorner.CornerRadius = UDim.new(0, 8)
+MCorner.Parent = MerlinCard
+
+local LblMerlinLucky = Instance.new("TextLabel")
+LblMerlinLucky.Size = UDim2.new(1, -24, 0, 26)
+LblMerlinLucky.Position = UDim2.new(0, 12, 0, 8)
+LblMerlinLucky.BackgroundTransparency = 1
+LblMerlinLucky.Text = "🍀 Lucky V (+25%): กำลังตรวจ..."
+LblMerlinLucky.TextColor3 = Color3.fromRGB(52, 211, 153)
+LblMerlinLucky.TextSize = 14
+LblMerlinLucky.Font = Enum.Font.GothamSemibold
+LblMerlinLucky.TextXAlignment = Enum.TextXAlignment.Left
+LblMerlinLucky.Parent = MerlinCard
+
+local LblMerlinLure = Instance.new("TextLabel")
+LblMerlinLure.Size = UDim2.new(1, -24, 0, 26)
+LblMerlinLure.Position = UDim2.new(0, 12, 0, 38)
+LblMerlinLure.BackgroundTransparency = 1
+LblMerlinLure.Text = "⏱️ Lure IV (+20%): กำลังตรวจ..."
+LblMerlinLure.TextColor3 = Color3.fromRGB(96, 165, 250)
+LblMerlinLure.TextSize = 14
+LblMerlinLure.Font = Enum.Font.GothamSemibold
+LblMerlinLure.TextXAlignment = Enum.TextXAlignment.Left
+LblMerlinLure.Parent = MerlinCard
+
+local LblMerlinInsight = Instance.new("TextLabel")
+LblMerlinInsight.Size = UDim2.new(1, -24, 0, 26)
+LblMerlinInsight.Position = UDim2.new(0, 12, 0, 68)
+LblMerlinInsight.BackgroundTransparency = 1
+LblMerlinInsight.Text = "⚡ Insight IV (+20%): กำลังตรวจ..."
+LblMerlinInsight.TextColor3 = Color3.fromRGB(251, 191, 36)
+LblMerlinInsight.TextSize = 14
+LblMerlinInsight.Font = Enum.Font.GothamSemibold
+LblMerlinInsight.TextXAlignment = Enum.TextXAlignment.Left
+LblMerlinInsight.Parent = MerlinCard
+
+local LblMerlinMode = Instance.new("TextLabel")
+LblMerlinMode.Size = UDim2.new(1, -24, 0, 26)
+LblMerlinMode.Position = UDim2.new(0, 12, 0, 100)
+LblMerlinMode.BackgroundTransparency = 1
+LblMerlinMode.Text = "🌐 สถานะ Auto-Renew: ปิดอยู่ (คลิกปุ่มด้านล่างเพื่อเปิด)"
+LblMerlinMode.TextColor3 = Color3.fromRGB(156, 163, 175)
+LblMerlinMode.TextSize = 13
+LblMerlinMode.Font = Enum.Font.Gotham
+LblMerlinMode.TextXAlignment = Enum.TextXAlignment.Left
+LblMerlinMode.Parent = MerlinCard
+
+local BuyAllMerlinBtn = Instance.new("TextButton")
+BuyAllMerlinBtn.Size = UDim2.new(1, 0, 0, 44)
+BuyAllMerlinBtn.Position = UDim2.new(0, 0, 0, 154)
+BuyAllMerlinBtn.BackgroundColor3 = Color3.fromRGB(138, 92, 246)
+BuyAllMerlinBtn.Text = "⚡ ซื้อบัฟทั้ง 3 ตัวทันที (Buy All 3 Buffs)"
+BuyAllMerlinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+BuyAllMerlinBtn.TextSize = 14
+BuyAllMerlinBtn.Font = Enum.Font.GothamBold
+BuyAllMerlinBtn.Parent = PageMerlin
+
+local BAMCorner = Instance.new("UICorner")
+BAMCorner.CornerRadius = UDim.new(0, 8)
+BAMCorner.Parent = BuyAllMerlinBtn
+
+-- 🔒 ปุ่ม Toggle Auto-Renew บัฟ (ค่าเริ่มต้น = สีเทา / ปิดอยู่)
+local ToggleMerlinAuto = Instance.new("TextButton")
+ToggleMerlinAuto.Size = UDim2.new(1, 0, 0, 40)
+ToggleMerlinAuto.Position = UDim2.new(0, 0, 0, 206)
+ToggleMerlinAuto.BackgroundColor3 = Color3.fromRGB(55, 65, 81)
+ToggleMerlinAuto.Text = "⚪ [OFF] Auto-Renew ปิดอยู่ (คลิกเพื่อเปิด)"
+ToggleMerlinAuto.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleMerlinAuto.TextSize = 13
+ToggleMerlinAuto.Font = Enum.Font.GothamBold
+ToggleMerlinAuto.Parent = PageMerlin
+
+local TMACorner = Instance.new("UICorner")
+TMACorner.CornerRadius = UDim.new(0, 6)
+TMACorner.Parent = ToggleMerlinAuto
+
+-- ===================================================================
+-- 🪱 TAB 3: BAIT & CRATES (เหยื่อ & กรง)
+-- ===================================================================
+local PageBaitShop = TabFrames["BaitShop"]
+
+local BaitSelectLabel = Instance.new("TextLabel")
+BaitSelectLabel.Size = UDim2.new(1, 0, 0, 24)
+BaitSelectLabel.Position = UDim2.new(0, 0, 0, 0)
+BaitSelectLabel.BackgroundTransparency = 1
+BaitSelectLabel.Text = "🎯 เลือกชนิดกล่องเหยื่อ (Selected Bait):"
+BaitSelectLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+BaitSelectLabel.TextSize = 14
+BaitSelectLabel.Font = Enum.Font.GothamBold
+BaitSelectLabel.TextXAlignment = Enum.TextXAlignment.Left
+BaitSelectLabel.Parent = PageBaitShop
+
+local BaitList = {
+    "Tropical Bait Crate",
+    "Quality Bait Crate",
+    "Coral Bait Crate",
+    "Bait Crate",
+    "Volcano Bait Crate"
+}
+
+local BaitBtnContainer = Instance.new("Frame")
+BaitBtnContainer.Size = UDim2.new(1, 0, 0, 36)
+BaitBtnContainer.Position = UDim2.new(0, 0, 0, 26)
+BaitBtnContainer.BackgroundTransparency = 1
+BaitBtnContainer.Parent = PageBaitShop
+
+local BaitButtons = {}
+for idx, bName in ipairs(BaitList) do
+    local bBtn = Instance.new("TextButton")
+    bBtn.Size = UDim2.new(1 / #BaitList, -4, 1, 0)
+    bBtn.Position = UDim2.new((idx - 1) / #BaitList, 2, 0, 0)
+    bBtn.BackgroundColor3 = (bName == selectedBait) and Color3.fromRGB(138, 92, 246) or Color3.fromRGB(39, 39, 52)
+    bBtn.Text = bName:gsub(" Bait Crate", ""):gsub(" Crate", "")
+    bBtn.TextColor3 = (bName == selectedBait) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 200)
+    bBtn.TextSize = 12
+    bBtn.Font = Enum.Font.GothamBold
+    bBtn.Parent = BaitBtnContainer
+    
+    local bCorner = Instance.new("UICorner")
+    bCorner.CornerRadius = UDim.new(0, 6)
+    bCorner.Parent = bBtn
+    
+    BaitButtons[bName] = bBtn
+    
+    bBtn.MouseButton1Click:Connect(function()
+        selectedBait = bName
+        for name, btnObj in pairs(BaitButtons) do
+            local isSel = (name == selectedBait)
+            btnObj.BackgroundColor3 = isSel and Color3.fromRGB(138, 92, 246) or Color3.fromRGB(39, 39, 52)
+            btnObj.TextColor3 = isSel and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 200)
+        end
+        addLog("🎯 เลือกเหยื่อ: " .. selectedBait, Color3.fromRGB(192, 132, 252))
+    end)
+end
+
+-- 🔒 ปุ่ม Toggle Auto Buy เหยื่อ (Default: OFF)
+local ToggleAutoBuyBait = Instance.new("TextButton")
+ToggleAutoBuyBait.Size = UDim2.new(1, 0, 0, 40)
+ToggleAutoBuyBait.Position = UDim2.new(0, 0, 0, 70)
+ToggleAutoBuyBait.BackgroundColor3 = Color3.fromRGB(55, 65, 81)
+ToggleAutoBuyBait.Text = "⚪ [OFF] Auto Buy เหยื่อ (คลิกเพื่อเริ่มซื้อเรื่อยๆ)"
+ToggleAutoBuyBait.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleAutoBuyBait.TextSize = 13
+ToggleAutoBuyBait.Font = Enum.Font.GothamBold
+ToggleAutoBuyBait.Parent = PageBaitShop
+
+local TABBCorner = Instance.new("UICorner")
+TABBCorner.CornerRadius = UDim.new(0, 6)
+TABBCorner.Parent = ToggleAutoBuyBait
+
+-- 🔒 ปุ่ม Toggle Auto Open เหยื่อ (Default: OFF)
+local ToggleAutoOpenBait = Instance.new("TextButton")
+ToggleAutoOpenBait.Size = UDim2.new(1, 0, 0, 40)
+ToggleAutoOpenBait.Position = UDim2.new(0, 0, 0, 118)
+ToggleAutoOpenBait.BackgroundColor3 = Color3.fromRGB(55, 65, 81)
+ToggleAutoOpenBait.Text = "⚪ [OFF] Auto Open เหยื่อ (คลิกเพื่อเริ่มเปิดเรื่อยๆ)"
+ToggleAutoOpenBait.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleAutoOpenBait.TextSize = 13
+ToggleAutoOpenBait.Font = Enum.Font.GothamBold
+ToggleAutoOpenBait.Parent = PageBaitShop
+
+local TAOBCorner = Instance.new("UICorner")
+TAOBCorner.CornerRadius = UDim.new(0, 6)
+TAOBCorner.Parent = ToggleAutoOpenBait
+
+-- หมวดซื้อกรงดักปู
+local CageLabel = Instance.new("TextLabel")
+CageLabel.Size = UDim2.new(1, 0, 0, 24)
+CageLabel.Position = UDim2.new(0, 0, 0, 168)
+CageLabel.BackgroundTransparency = 1
+CageLabel.Text = "🪤 ซื้อกรงดักปู (Crab Traps):"
+CageLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+CageLabel.TextSize = 14
+CageLabel.Font = Enum.Font.GothamBold
+CageLabel.TextXAlignment = Enum.TextXAlignment.Left
+CageLabel.Parent = PageBaitShop
+
+local BuyCrabTrapBtn = Instance.new("TextButton")
+BuyCrabTrapBtn.Size = UDim2.new(0.48, 0, 0, 38)
+BuyCrabTrapBtn.Position = UDim2.new(0, 0, 0, 196)
+BuyCrabTrapBtn.BackgroundColor3 = Color3.fromRGB(39, 39, 52)
+BuyCrabTrapBtn.Text = "🦀 Crab Trap (C$ 220)"
+BuyCrabTrapBtn.TextColor3 = Color3.fromRGB(220, 220, 235)
+BuyCrabTrapBtn.TextSize = 13
+BuyCrabTrapBtn.Font = Enum.Font.GothamSemibold
+BuyCrabTrapBtn.Parent = PageBaitShop
+
+local BCTCorner = Instance.new("UICorner")
+BCTCorner.CornerRadius = UDim.new(0, 6)
+BCTCorner.Parent = BuyCrabTrapBtn
+
+local BuyReinforcedTrapBtn = Instance.new("TextButton")
+BuyReinforcedTrapBtn.Size = UDim2.new(0.48, 0, 0, 38)
+BuyReinforcedTrapBtn.Position = UDim2.new(0.52, 0, 0, 196)
+BuyReinforcedTrapBtn.BackgroundColor3 = Color3.fromRGB(39, 39, 52)
+BuyReinforcedTrapBtn.Text = "🛡️ Reinforced (C$ 950)"
+BuyReinforcedTrapBtn.TextColor3 = Color3.fromRGB(220, 220, 235)
+BuyReinforcedTrapBtn.TextSize = 13
+BuyReinforcedTrapBtn.Font = Enum.Font.GothamSemibold
+BuyReinforcedTrapBtn.Parent = PageBaitShop
+
+local BRTCorner = Instance.new("UICorner")
+BRTCorner.CornerRadius = UDim.new(0, 6)
+BRTCorner.Parent = BuyReinforcedTrapBtn
+
+-- ===================================================================
+-- 🌌 TAB 4: AURORA TOTEM (46 พิกัด)
+-- ===================================================================
+local PageAurora = TabFrames["Aurora"]
+
+local AuroraCard = Instance.new("Frame")
+AuroraCard.Size = UDim2.new(1, 0, 0, 112)
+AuroraCard.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+AuroraCard.BorderSizePixel = 0
+AuroraCard.Parent = PageAurora
+
+local ACorner = Instance.new("UICorner")
+ACorner.CornerRadius = UDim.new(0, 8)
+ACorner.Parent = AuroraCard
+
+local LblAuroraStatus = Instance.new("TextLabel")
+LblAuroraStatus.Size = UDim2.new(1, -24, 0, 26)
+LblAuroraStatus.Position = UDim2.new(0, 12, 0, 8)
+LblAuroraStatus.BackgroundTransparency = 1
+LblAuroraStatus.Text = "🎯 สถานะ: ปิดอยู่ (Standby)"
+LblAuroraStatus.TextColor3 = Color3.fromRGB(156, 163, 175)
+LblAuroraStatus.TextSize = 14
+LblAuroraStatus.Font = Enum.Font.GothamBold
+LblAuroraStatus.TextXAlignment = Enum.TextXAlignment.Left
+LblAuroraStatus.Parent = AuroraCard
+
+local LblAuroraWaypoint = Instance.new("TextLabel")
+LblAuroraWaypoint.Size = UDim2.new(1, -24, 0, 26)
+LblAuroraWaypoint.Position = UDim2.new(0, 12, 0, 38)
+LblAuroraWaypoint.BackgroundTransparency = 1
+LblAuroraWaypoint.Text = "📍 จุดปัจจุบัน: - (ทั้งหมด 46 พิกัด)"
+LblAuroraWaypoint.TextColor3 = Color3.fromRGB(147, 197, 253)
+LblAuroraWaypoint.TextSize = 13
+LblAuroraWaypoint.Font = Enum.Font.GothamSemibold
+LblAuroraWaypoint.TextXAlignment = Enum.TextXAlignment.Left
+LblAuroraWaypoint.Parent = AuroraCard
+
+local LblAuroraBought = Instance.new("TextLabel")
+LblAuroraBought.Size = UDim2.new(1, -24, 0, 26)
+LblAuroraBought.Position = UDim2.new(0, 12, 0, 68)
+LblAuroraBought.BackgroundTransparency = 1
+LblAuroraBought.Text = "💰 ซื้อสำเร็จแล้ว: 0 อัน"
+LblAuroraBought.TextColor3 = Color3.fromRGB(52, 211, 153)
+LblAuroraBought.TextSize = 14
+LblAuroraBought.Font = Enum.Font.GothamSemibold
+LblAuroraBought.TextXAlignment = Enum.TextXAlignment.Left
+LblAuroraBought.Parent = AuroraCard
+
+-- 🔒 ปุ่ม Toggle Auto Buy Aurora Totem (Default: OFF)
+local ToggleAuroraBtn = Instance.new("TextButton")
+ToggleAuroraBtn.Size = UDim2.new(1, 0, 0, 42)
+ToggleAuroraBtn.Position = UDim2.new(0, 0, 0, 124)
+ToggleAuroraBtn.BackgroundColor3 = Color3.fromRGB(55, 65, 81)
+ToggleAuroraBtn.Text = "⚪ [OFF] Auto Buy Aurora (คลิกเพื่อเริ่มค้นหา 46 จุด)"
+ToggleAuroraBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleAuroraBtn.TextSize = 13
+ToggleAuroraBtn.Font = Enum.Font.GothamBold
+ToggleAuroraBtn.Parent = PageAurora
+
+local TABCorner = Instance.new("UICorner")
+TABCorner.CornerRadius = UDim.new(0, 6)
+TABCorner.Parent = ToggleAuroraBtn
+
+-- ปุ่ม Toggle วนซ้ำต่อเนื่อง (Loop Forever)
+local ToggleAuroraLoopBtn = Instance.new("TextButton")
+ToggleAuroraLoopBtn.Size = UDim2.new(1, 0, 0, 38)
+ToggleAuroraLoopBtn.Position = UDim2.new(0, 0, 0, 174)
+ToggleAuroraLoopBtn.BackgroundColor3 = Color3.fromRGB(39, 39, 52)
+ToggleAuroraLoopBtn.Text = "🔁 โหมดวนซ้ำรอบใหม่: ปิดอยู่ (วิ่งรอบเดียวจบ)"
+ToggleAuroraLoopBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+ToggleAuroraLoopBtn.TextSize = 13
+ToggleAuroraLoopBtn.Font = Enum.Font.GothamSemibold
+ToggleAuroraLoopBtn.Parent = PageAurora
+
+local TALBCorner = Instance.new("UICorner")
+TALBCorner.CornerRadius = UDim.new(0, 6)
+TALBCorner.Parent = ToggleAuroraLoopBtn
+-- ===================================================================
+-- ⚡ TAB 5: OLYMPUS ROD TELEPORT (วาปไปทำเบ็ดโอลิมปัส ชั้น 1 - 6)
+-- ===================================================================
+local PageOlympus = TabFrames["Olympus"]
+
+local OlympusCard = Instance.new("Frame")
+OlympusCard.Size = UDim2.new(1, 0, 0, 64)
+OlympusCard.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+OlympusCard.BorderSizePixel = 0
+OlympusCard.Parent = PageOlympus
+
+local OCorner = Instance.new("UICorner")
+OCorner.CornerRadius = UDim.new(0, 8)
+OCorner.Parent = OlympusCard
+
+local LblOlympusTitle = Instance.new("TextLabel")
+LblOlympusTitle.Size = UDim2.new(1, -20, 0, 24)
+LblOlympusTitle.Position = UDim2.new(0, 12, 0, 8)
+LblOlympusTitle.BackgroundTransparency = 1
+LblOlympusTitle.Text = "⚡ วาร์ปไปทำเบ็ดโอลิมปัส (Olympus Rod)"
+LblOlympusTitle.TextColor3 = Color3.fromRGB(251, 191, 36)
+LblOlympusTitle.TextSize = 15
+LblOlympusTitle.Font = Enum.Font.GothamBold
+LblOlympusTitle.TextXAlignment = Enum.TextXAlignment.Left
+LblOlympusTitle.Parent = OlympusCard
+
+local LblOlympusDesc = Instance.new("TextLabel")
+LblOlympusDesc.Size = UDim2.new(1, -20, 0, 22)
+LblOlympusDesc.Position = UDim2.new(0, 12, 0, 34)
+LblOlympusDesc.BackgroundTransparency = 1
+LblOlympusDesc.Text = "🏛️ กดคลิกชั้นที่ต้องการเพื่อวาร์ปทันที (บันทึกจุดเดิมให้อัตโนมัติ)"
+LblOlympusDesc.TextColor3 = Color3.fromRGB(156, 163, 175)
+LblOlympusDesc.TextSize = 13
+LblOlympusDesc.Font = Enum.Font.Gotham
+LblOlympusDesc.TextXAlignment = Enum.TextXAlignment.Left
+LblOlympusDesc.Parent = OlympusCard
+
+local OlympusFloors = {
+    { id = 1, name = "ชั้น 1", pos = Vector3.new(-8965.1, -2308.0, 367.0), coords = "-8965.1, -2308.0, 367.0" },
+    { id = 2, name = "ชั้น 2", pos = Vector3.new(-8831.5, -2906.3, 585.8), coords = "-8831.5, -2906.3, 585.8" },
+    { id = 3, name = "ชั้น 3", pos = Vector3.new(-8962.3, -3118.4, 645.6), coords = "-8962.3, -3118.4, 645.6" },
+    { id = 4, name = "ชั้น 4", pos = Vector3.new(-8590.3, -3531.8, 695.9), coords = "-8590.3, -3531.8, 695.9" },
+    { id = 5, name = "ชั้น 5", pos = Vector3.new(-9144.2, -4232.8, 292.8), coords = "-9144.2, -4232.8, 292.8" },
+    { id = 6, name = "ชั้น 6", pos = Vector3.new(-8804.2, -4243.6, -288.7), coords = "-8804.2, -4243.6, -288.7" },
+}
+
+local lastSavedOlympusPos = nil
+
+local function teleportToFloor(floorData)
+    local root = getRoot()
+    if not root then
+        addLog("❌ ไม่พบตัวละคร ไม่สามารถวาร์ปได้", Color3.fromRGB(248, 113, 113))
+        return
+    end
+    
+    lastSavedOlympusPos = root.CFrame
+    local targetCF = CFrame.new(floorData.pos + Vector3.new(0, 3, 0))
+    teleportPlayer(targetCF)
+    
+    addLog(string.format("⚡ วาร์ปไปเบ็ดโอลิมปัส [%s] สำเร็จ! (พิกัด: %s)", floorData.name, floorData.coords), Color3.fromRGB(251, 191, 36))
+    notify("Olympus Teleport", string.format("⚡ วาร์ปไป %s เรียบร้อย!", floorData.name), 3)
+end
+
+local floorPositions = {
+    { x = 0, y = 74 },
+    { x = 0.52, y = 74 },
+    { x = 0, y = 128 },
+    { x = 0.52, y = 128 },
+    { x = 0, y = 182 },
+    { x = 0.52, y = 182 },
+}
+
+for idx, fData in ipairs(OlympusFloors) do
+    local fBtn = Instance.new("TextButton")
+    fBtn.Name = "Btn_Olympus_" .. fData.id
+    fBtn.Size = UDim2.new(0.48, 0, 0, 46)
+    fBtn.Position = UDim2.new(floorPositions[idx].x, 0, 0, floorPositions[idx].y)
+    fBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+    fBtn.Text = string.format("⚡ วาร์ปไป %s\n(คลิกเพื่อวาร์ปทันที)", fData.name)
+    fBtn.TextColor3 = Color3.fromRGB(240, 240, 255)
+    fBtn.TextSize = 13
+    fBtn.Font = Enum.Font.GothamBold
+    fBtn.Parent = PageOlympus
+    
+    local fCorner = Instance.new("UICorner")
+    fCorner.CornerRadius = UDim.new(0, 6)
+    fCorner.Parent = fBtn
+    
+    local fStroke = Instance.new("UIStroke")
+    fStroke.Thickness = 1
+    fStroke.Color = Color3.fromRGB(60, 60, 80)
+    fStroke.Parent = fBtn
+    
+    fBtn.MouseEnter:Connect(function()
+        fBtn.BackgroundColor3 = Color3.fromRGB(138, 92, 246)
+        fBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        fStroke.Color = Color3.fromRGB(167, 139, 250)
+    end)
+    fBtn.MouseLeave:Connect(function()
+        fBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+        fBtn.TextColor3 = Color3.fromRGB(240, 240, 255)
+        fStroke.Color = Color3.fromRGB(60, 60, 80)
+    end)
+    
+    fBtn.MouseButton1Click:Connect(function()
+        teleportToFloor(fData)
+    end)
+end
+
+-- ปุ่มวาร์ปกลับจุดเดิม
+local ReturnOlympusBtn = Instance.new("TextButton")
+ReturnOlympusBtn.Name = "ReturnOlympusBtn"
+ReturnOlympusBtn.Size = UDim2.new(1, 0, 0, 40)
+ReturnOlympusBtn.Position = UDim2.new(0, 0, 0, 238)
+ReturnOlympusBtn.BackgroundColor3 = Color3.fromRGB(59, 130, 246)
+ReturnOlympusBtn.Text = "🔄 วาร์ปกลับจุดเดิมก่อนหน้า (Return)"
+ReturnOlympusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ReturnOlympusBtn.TextSize = 13
+ReturnOlympusBtn.Font = Enum.Font.GothamBold
+ReturnOlympusBtn.Parent = PageOlympus
+
+local ROB_Corner = Instance.new("UICorner")
+ROB_Corner.CornerRadius = UDim.new(0, 6)
+ROB_Corner.Parent = ReturnOlympusBtn
+
+ReturnOlympusBtn.MouseButton1Click:Connect(function()
+    if not lastSavedOlympusPos then
+        addLog("⚠️ ยังไม่มีตำแหน่งจุดเดิมที่บันทึกไว้", Color3.fromRGB(251, 191, 36))
+        notify("Teleport", "ยังไม่มีจุดเดิมที่บันทึกไว้", 3)
+        return
+    end
+    teleportPlayer(lastSavedOlympusPos)
+    addLog("📍 วาร์ปกลับจุดเดิมก่อนหน้าเรียบร้อย", Color3.fromRGB(96, 165, 250))
+    notify("Teleport", "วาร์ปกลับจุดเดิมเรียบร้อย!", 3)
+end)
+
+-- ===================================================================
+-- 🪞 OLYMPUS QUEST UI (หมุนกระจก 5 จุด & เควสดาบ)
+-- ===================================================================
+local QuestHeaderCard = Instance.new("Frame")
+QuestHeaderCard.Size = UDim2.new(1, 0, 0, 56)
+QuestHeaderCard.Position = UDim2.new(0, 0, 0, 290)
+QuestHeaderCard.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+QuestHeaderCard.BorderSizePixel = 0
+QuestHeaderCard.Parent = PageOlympus
+
+local QCorner = Instance.new("UICorner")
+QCorner.CornerRadius = UDim.new(0, 8)
+QCorner.Parent = QuestHeaderCard
+
+local LblQuestTitle = Instance.new("TextLabel")
+LblQuestTitle.Size = UDim2.new(1, -20, 0, 22)
+LblQuestTitle.Position = UDim2.new(0, 12, 0, 6)
+LblQuestTitle.BackgroundTransparency = 1
+LblQuestTitle.Text = "🪞 เควสหมุนกระจก & เควสดาบโอลิมปัส"
+LblQuestTitle.TextColor3 = Color3.fromRGB(251, 191, 36)
+LblQuestTitle.TextSize = 14
+LblQuestTitle.Font = Enum.Font.GothamBold
+LblQuestTitle.TextXAlignment = Enum.TextXAlignment.Left
+LblQuestTitle.Parent = QuestHeaderCard
+
+local LblQuestDesc = Instance.new("TextLabel")
+LblQuestDesc.Size = UDim2.new(1, -20, 0, 20)
+LblQuestDesc.Position = UDim2.new(0, 12, 0, 28)
+LblQuestDesc.BackgroundTransparency = 1
+LblQuestDesc.Text = "⚡ กดปุ่มเดียวเพื่อหมุนกระจกครบ 5 จุด หรือส่งเควสดาบอัตโนมัติ"
+LblQuestDesc.TextColor3 = Color3.fromRGB(156, 163, 175)
+LblQuestDesc.TextSize = 12
+LblQuestDesc.Font = Enum.Font.Gotham
+LblQuestDesc.TextXAlignment = Enum.TextXAlignment.Left
+LblQuestDesc.Parent = QuestHeaderCard
+
+-- ปุ่มหมุนกระจก (Auto Mirror 5 จุด)
+local MirrorQuestBtn = Instance.new("TextButton")
+MirrorQuestBtn.Name = "MirrorQuestBtn"
+MirrorQuestBtn.Size = UDim2.new(1, 0, 0, 44)
+MirrorQuestBtn.Position = UDim2.new(0, 0, 0, 356)
+MirrorQuestBtn.BackgroundColor3 = Color3.fromRGB(16, 185, 129)
+MirrorQuestBtn.Text = "🪞 [เริ่ม] ออโต้หมุนกระจก 5 จุด (Auto Rotate Mirrors)"
+MirrorQuestBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MirrorQuestBtn.TextSize = 13
+MirrorQuestBtn.Font = Enum.Font.GothamBold
+MirrorQuestBtn.Parent = PageOlympus
+
+local MQCorner = Instance.new("UICorner")
+MQCorner.CornerRadius = UDim.new(0, 6)
+MQCorner.Parent = MirrorQuestBtn
+
+local LblMirrorStatus = Instance.new("TextLabel")
+LblMirrorStatus.Size = UDim2.new(1, 0, 0, 22)
+LblMirrorStatus.Position = UDim2.new(0, 4, 0, 404)
+LblMirrorStatus.BackgroundTransparency = 1
+LblMirrorStatus.Text = "📍 กระจก: พร้อมทำงาน (5 จุด: 5, 7, 3, 3, 7 ครั้ง)"
+LblMirrorStatus.TextColor3 = Color3.fromRGB(156, 163, 175)
+LblMirrorStatus.TextSize = 12
+LblMirrorStatus.Font = Enum.Font.Gotham
+LblMirrorStatus.TextXAlignment = Enum.TextXAlignment.Left
+LblMirrorStatus.Parent = PageOlympus
+
+-- ปุ่มส่งเควสดาบ (Auto Sword Quest)
+local SwordQuestBtn = Instance.new("TextButton")
+SwordQuestBtn.Name = "SwordQuestBtn"
+SwordQuestBtn.Size = UDim2.new(1, 0, 0, 44)
+SwordQuestBtn.Position = UDim2.new(0, 0, 0, 432)
+SwordQuestBtn.BackgroundColor3 = Color3.fromRGB(138, 92, 246)
+SwordQuestBtn.Text = "⚔️ [เริ่ม] ออโต้ส่งเควสดาบ (Auto Sword Quest)"
+SwordQuestBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SwordQuestBtn.TextSize = 13
+SwordQuestBtn.Font = Enum.Font.GothamBold
+SwordQuestBtn.Parent = PageOlympus
+
+local SQCorner = Instance.new("UICorner")
+SQCorner.CornerRadius = UDim.new(0, 6)
+SQCorner.Parent = SwordQuestBtn
+
+local LblSwordStatus = Instance.new("TextLabel")
+LblSwordStatus.Size = UDim2.new(1, 0, 0, 22)
+LblSwordStatus.Position = UDim2.new(0, 4, 0, 480)
+LblSwordStatus.BackgroundTransparency = 1
+LblSwordStatus.Text = "📍 เควสดาบ: พร้อมทำงาน (เก็บ 9 จุด + สวมดาบ/หมวก)"
+LblSwordStatus.TextColor3 = Color3.fromRGB(156, 163, 175)
+LblSwordStatus.TextSize = 12
+LblSwordStatus.Font = Enum.Font.Gotham
+LblSwordStatus.TextXAlignment = Enum.TextXAlignment.Left
+LblSwordStatus.Parent = PageOlympus
+
+-- ปุ่มสั่งหยุดเควส
+local StopOlympusQuestBtn = Instance.new("TextButton")
+StopOlympusQuestBtn.Name = "StopOlympusQuestBtn"
+StopOlympusQuestBtn.Size = UDim2.new(1, 0, 0, 38)
+StopOlympusQuestBtn.Position = UDim2.new(0, 0, 0, 508)
+StopOlympusQuestBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+StopOlympusQuestBtn.Text = "⏹ หยุดการทำงานเควส (Stop Quest)"
+StopOlympusQuestBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+StopOlympusQuestBtn.TextSize = 13
+StopOlympusQuestBtn.Font = Enum.Font.GothamBold
+StopOlympusQuestBtn.Parent = PageOlympus
+
+local SOQCorner = Instance.new("UICorner")
+SOQCorner.CornerRadius = UDim.new(0, 6)
+SOQCorner.Parent = StopOlympusQuestBtn
+
+-- เว้นระยะด้านล่างสำหรับการเลื่อน Scroll
+local BottomSpacer = Instance.new("Frame")
+BottomSpacer.Size = UDim2.new(1, 0, 0, 30)
+BottomSpacer.Position = UDim2.new(0, 0, 0, 552)
+BottomSpacer.BackgroundTransparency = 1
+BottomSpacer.Parent = PageOlympus
+
+selectTab("Pearl")
+
+-- ===================================================================
+-- 🖱️ DRAGGABLE & KEYBIND [ Z ]
+-- ===================================================================
+local isDragging = false
+local dragStart, startPos
+
+Topbar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then isDragging = false end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- 🎣 ปุ่มเปิด/ปิดเมนูลอยบนหน้าจอ (กดคลิกได้ตลอดเวลา / ลากย้ายตำแหน่งได้)
+local FloatingToggle = Instance.new("TextButton")
+FloatingToggle.Name = "FloatingToggle"
+FloatingToggle.Size = UDim2.new(0, 56, 0, 56)
+FloatingToggle.Position = UDim2.new(0, 16, 0.45, 0)
+FloatingToggle.BackgroundColor3 = Color3.fromRGB(138, 92, 246)
+FloatingToggle.Text = "🎣"
+FloatingToggle.TextSize = 28
+FloatingToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+FloatingToggle.Font = Enum.Font.GothamBold
+FloatingToggle.Parent = ScreenGui
+
+local FTC_Corner = Instance.new("UICorner")
+FTC_Corner.CornerRadius = UDim.new(1, 0)
+FTC_Corner.Parent = FloatingToggle
+
+local FTC_Stroke = Instance.new("UIStroke")
+FTC_Stroke.Thickness = 2
+FTC_Stroke.Color = Color3.fromRGB(255, 255, 255)
+FTC_Stroke.Parent = FloatingToggle
+
+local ftDragging, ftStart, ftPos = false, nil, nil
+FloatingToggle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        ftDragging = true
+        ftStart = input.Position
+        ftPos = FloatingToggle.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then ftDragging = false end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if ftDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - ftStart
+        FloatingToggle.Position = UDim2.new(ftPos.X.Scale, ftPos.X.Offset + delta.X, ftPos.Y.Scale, ftPos.Y.Offset + delta.Y)
+    end
+end)
+
+FloatingToggle.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+-- ⌨️ กดปุ่ม [ Z ] เพื่อเปิด / ปิด เมนู (ไม่โดนบล็อก)
+UserInputService.InputBegan:Connect(function(input)
+    if UserInputService:GetFocusedTextBox() then return end
+    if input.KeyCode == Enum.KeyCode.Z then
+        MainFrame.Visible = not MainFrame.Visible
+    end
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    notify("Pond Hub", "กดปุ่ม 🎣 บนหน้าจอ หรือกดปุ่ม [ Z ] เพื่อเปิดเมนูกลับมา", 3)
+end)
+
+local isMinimized = false
+MinBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    TabBar.Visible = not isMinimized
+    for id, f in pairs(TabFrames) do f.Visible = (not isMinimized and id == "Pearl") end
+    LogFrame.Visible = not isMinimized
+    MainFrame.Size = isMinimized and UDim2.new(0, 660, 0, 48) or UDim2.new(0, 660, 0, 660)
+end)
+
+-- 🔄 Rejoin Button Event
+RejoinBtn.MouseButton1Click:Connect(function()
+    addLog("🔄 กำลังเชื่อมต่อเข้าเซิร์ฟเวอร์ใหม่อัตโนมัติ...", Color3.fromRGB(96, 165, 250))
+    notify("Rejoin Server", "กำลังเชื่อมต่อเข้าเซิร์ฟเวอร์ใหม่...", 3)
+    task.wait(0.5)
+    pcall(function()
+        if #Players:GetPlayers() <= 1 then
+            LocalPlayer:Kick("\n[Rejoin] กำลังเข้าเซิร์ฟเวอร์ใหม่...")
+            task.wait(0.2)
+            TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        else
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+        end
+    end)
+end)
+
+-- ===================================================================
+-- 🔍 CORE HELPER FUNCTIONS
+-- ===================================================================
+
+local function parseTimerText(timerStr)
+    if not timerStr then return 0 end
+    local h, m, s = timerStr:match("(%d+):(%d+):(%d+)")
+    if h and m and s then return (tonumber(h) * 3600) + (tonumber(m) * 60) + tonumber(s) end
+    local min, sec = timerStr:match("(%d+):(%d+)")
+    if min and sec then return (tonumber(min) * 60) + tonumber(sec) end
+    return 0
+end
+
+local function checkMerlinBuffs()
+    local pgui = LocalPlayer:FindFirstChild("PlayerGui")
+    local hud = pgui and pgui:FindFirstChild("hud")
+    local statuses = hud and hud:FindFirstChild("safezone") and hud.safezone:FindFirstChild("statuses")
+    
+    local buffStatus = {
+        Lucky = { active = false, remaining = 0, text = "ไม่มี" },
+        Insight = { active = false, remaining = 0, text = "ไม่มี" },
+        Lure = { active = false, remaining = 0, text = "ไม่มี" },
+    }
+    
+    if statuses then
+        for _, frame in ipairs(statuses:GetChildren()) do
+            if frame:IsA("Frame") and frame.Visible then
+                local displayName = frame:FindFirstChild("displayName")
+                local timerLabel = frame:FindFirstChild("timer")
+                local nameText = displayName and displayName.Text or frame.Name
+                local rawTime = timerLabel and timerLabel.Text or "00:00"
+                local remainingSec = parseTimerText(rawTime)
+                
+                if nameText:find("Lucky") or frame.Name:find("Luck") then
+                    buffStatus.Lucky.active = true
+                    buffStatus.Lucky.remaining = remainingSec
+                    buffStatus.Lucky.text = rawTime
+                elseif nameText:find("Insight") or frame.Name:find("Xp") then
+                    buffStatus.Insight.active = true
+                    buffStatus.Insight.remaining = remainingSec
+                    buffStatus.Insight.text = rawTime
+                elseif nameText:find("Lure") or frame.Name:find("Lure") then
+                    buffStatus.Lure.active = true
+                    buffStatus.Lure.remaining = remainingSec
+                    buffStatus.Lure.text = rawTime
+                end
+            end
+        end
+    end
+    
+    LblMerlinLucky.Text = string.format("🍀 Lucky V (+25%%): %s", buffStatus.Lucky.text)
+    LblMerlinLure.Text = string.format("⏱️ Lure IV (+20%%): %s", buffStatus.Lure.text)
+    LblMerlinInsight.Text = string.format("⚡ Insight IV (+20%%): %s", buffStatus.Insight.text)
+    
+    return buffStatus
+end
+
+local isBuyingMerlin = false
+
+local function buySingleBuff(nodeId)
+    local s, res = pcall(function()
+        return dialogInteract:InvokeServer(nodeId, 1)
+    end)
+    return s, res
+end
+
+local function initMerlinSessionAndBuy(needLucky, needLure, needInsight, isManual)
+    local root = getRoot()
+    if not root then
+        isBuyingMerlin = false
+        return false
+    end
+    
+    if isPearlRunning or isMirrorRunning or isSwordRunning or isAuroraRunning then
+        addLog("⚠️ มีฟังก์ชันอื่นกำลังทำงานอยู่ ไม่สามารถวาร์ปไปหา Merlin ได้ในขณะนี้", Color3.fromRGB(251, 191, 36))
+        if isManual then notify("Merlin Buffs", "มีงานอื่นทำงานอยู่ กรุณารอหรือหยุดงานเดิมก่อน", 3) end
+        isBuyingMerlin = false
+        return false
+    end
+    
+    local char = LocalPlayer.Character
+    local origCFrame = root.CFrame
+    
+    addLog("🧙‍♂️ กำลังวาร์ปไปคุยและซื้อบัฟกับ Merlin (Sunstone Island)...", Color3.fromRGB(251, 191, 36))
+    if isManual then notify("Merlin Buffs", "กำลังวาร์ปไปหา Merlin...", 3) end
+    
+    ProximityPromptService.Enabled = true
+    if char and char:FindFirstChild("dialoglink") then char.dialoglink:Destroy() end
+    
+    -- วาร์ปไปที่พิกัด Merlin บน Sunstone Island
+    root.CFrame = CFrame.new(MERLIN_POS + Vector3.new(0, 2, 3), MERLIN_POS)
+    root.Velocity = Vector3.zero
+    root.RotVelocity = Vector3.zero
+    
+    -- รอ StreamingEnabled โหลด NPC Merlin (สูงสุด 3.5 วินาที)
+    local merlin = nil
+    local t0 = tick()
+    while tick() - t0 < 3.5 do
+        merlin = workspace:FindFirstChild("world") and workspace.world:FindFirstChild("npcs") and workspace.world.npcs:FindFirstChild("Merlin")
+        if not merlin then merlin = workspace:FindFirstChild("Merlin", true) end
+        if merlin and (merlin:FindFirstChild("ProximityPrompt") or merlin:FindFirstChildWhichIsA("ProximityPrompt", true)) then
+            break
+        end
+        task.wait(0.2)
+    end
+    
+    if not merlin then
+        addLog("❌ ไม่พบ NPC Merlin หรือโหลดแมพไม่ทัน (กรุณาลองใหม่อีกครั้ง)", Color3.fromRGB(248, 113, 113))
+        if origCFrame then
+            task.wait(0.2)
+            root.CFrame = origCFrame
+            root.Velocity = Vector3.zero
+            root.RotVelocity = Vector3.zero
+        end
+        isBuyingMerlin = false
+        return false
+    end
+    
+    local prompt = merlin:FindFirstChild("ProximityPrompt") or merlin:FindFirstChildWhichIsA("ProximityPrompt", true)
+    local head = merlin and (merlin:FindFirstChild("Head") or merlin.PrimaryPart or merlin:FindFirstChildWhichIsA("BasePart"))
+    
+    if head then
+        root.CFrame = CFrame.new(head.Position + Vector3.new(0, 0, 2), head.Position)
+        root.Velocity = Vector3.zero
+        task.wait(0.2)
+    end
+    
+    -- รอรับ OnClientEvent ยืนยันว่า Session เปิดจริง
+    local dialogStarted = false
+    local conn = dialogStartEvent.OnClientEvent:Connect(function()
+        dialogStarted = true
+    end)
+    
+    if prompt then
+        prompt:InputHoldBegin()
+        task.wait(0.05)
+        prompt:InputHoldEnd()
+        if fireproximityprompt then fireproximityprompt(prompt, 0) end
+    end
+    
+    local t1 = tick()
+    while tick() - t1 < 2.5 do
+        if dialogStarted then break end
+        task.wait(0.05)
+    end
+    conn:Disconnect()
+    
+    if dialogStarted then
+        hasMerlinSession = true
+        task.wait(0.1)
+        
+        -- กดซื้อทันทีตามคำสั่งโดยไม่ต้องเช็คบัฟก่อน
+        buySingleBuff(30)
+        task.wait(0.15)
+        buySingleBuff(31)
+        task.wait(0.15)
+        buySingleBuff(32)
+        task.wait(0.15)
+        
+        addLog("✅ สั่งซื้อบัฟ Merlin ทั้ง 3 ตัวเรียบร้อย! (Lucky V 🍀, Lure IV ⏱️, Insight IV ⚡)", Color3.fromRGB(52, 211, 153))
+        notify("Merlin Buffs", "✅ ซื้อบัฟทั้ง 3 ตัวสำเร็จ!", 4)
+    else
+        addLog("❌ กดคุยกับ Merlin ไม่สำเร็จ (Prompt ไม่ตอบสนอง)", Color3.fromRGB(248, 113, 113))
+    end
+    
+    if char and char:FindFirstChild("dialoglink") then char.dialoglink:Destroy() end
+    ProximityPromptService.Enabled = true
+    
+    -- วาร์ปกลับจุดเดิมทันที
+    if origCFrame then
+        task.wait(0.3)
+        root.CFrame = origCFrame
+        root.Velocity = Vector3.zero
+        root.RotVelocity = Vector3.zero
+        addLog("📍 วาร์ปกลับมาจุดฟาร์มเดิมเรียบร้อย", Color3.fromRGB(96, 165, 250))
+    end
+    
+    task.wait(0.5)
+    checkMerlinBuffs()
+    isBuyingMerlin = false
+    return dialogStarted
+end
+
+local function executeMerlinBuffs(needLucky, needLure, needInsight, isManual)
+    if isBuyingMerlin then return end
+    isBuyingMerlin = true
+    
+    task.spawn(function()
+        local root = getRoot()
+        if not root then
+            isBuyingMerlin = false
+            return
+        end
+        
+        -- ถ้ามี Session สั่งซื้อระยะไกลทันที
+        if hasMerlinSession then
+            addLog("⚡ กำลังส่งคำสั่งซื้อบัฟ Merlin ทั้ง 3 ตัว (ระยะไกล)...", Color3.fromRGB(147, 197, 253))
+            local s1, r1 = buySingleBuff(30)
+            task.wait(0.12)
+            local s2, r2 = buySingleBuff(31)
+            task.wait(0.12)
+            local s3, r3 = buySingleBuff(32)
+            task.wait(0.12)
+            
+            if s1 and r1 ~= nil then
+                task.wait(0.4)
+                checkMerlinBuffs()
+                addLog("✅ สั่งซื้อบัฟ Merlin ทั้ง 3 ตัวเรียบร้อย! (Lucky V 🍀, Lure IV ⏱️, Insight IV ⚡)", Color3.fromRGB(52, 211, 153))
+                if isManual then notify("Merlin Buffs", "✅ ซื้อบัฟทั้ง 3 ตัวสำเร็จ!", 4) end
+                isBuyingMerlin = false
+                return
+            else
+                addLog("⚠️ Session ระยะไกลไม่ตอบสนอง กำลังวาร์ปไปคุยตรงกับ Merlin...", Color3.fromRGB(251, 191, 36))
+                hasMerlinSession = false
+            end
+        end
+        
+        -- ถ้ายังไม่มี Session หรือยิงระยะไกลไม่ผ่าน ให้วาร์ปไปคุยตรงๆ
+        initMerlinSessionAndBuy(true, true, true, isManual)
+    end)
+end
+
+local function buyMerlinBuffs(force)
+    executeMerlinBuffs(true, true, true, true)
+end
+
+local function buyItem(itemName, category, amount)
+    amount = amount or 1
+    if purchaseRemote then
+        pcall(function() purchaseRemote:FireServer(itemName, category or "Item", amount) end)
+        addLog(string.format("🛒 สั่งซื้อ %s (x%d) สำเร็จ!", itemName, amount), Color3.fromRGB(96, 165, 250))
+        notify("Shop", string.format("ซื้อ %s สำเร็จ!", itemName), 3)
+    end
+end
+
+-- ===================================================================
+-- 🪱 AUTO BUY & AUTO OPEN BAIT FUNCTIONS
+-- ===================================================================
+local function getCrateInfo(crateName)
+    local inv = DataController.InventoryReplicator and DataController.InventoryReplicator.Data and DataController.InventoryReplicator.Data.Inventory
+    if inv then
+        for k, v in pairs(inv) do
+            local vName = v.name or (v.sub and v.sub.Name) or ""
+            if vName == crateName or vName:lower():find(crateName:lower()) then
+                local stack = (v.sub and v.sub.Stack) or 1
+                return stack, k
+            end
+        end
+    end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:IsA("Tool") and (t.Name == crateName or t.Name:lower():find(crateName:lower())) then
+                return 1, t.Name, t
+            end
+        end
+    end
+    return 0, nil
+end
+
+local function startAutoBuyBaitLoop()
+    task.spawn(function()
+        addLog("🛒 เริ่มระบบ Auto Buy: " .. selectedBait .. " (ซื้อเรื่อยๆ)...", Color3.fromRGB(96, 165, 250))
+        while isAutoBuyingBait do
+            if purchaseRemote then
+                pcall(function()
+                    purchaseRemote:FireServer(selectedBait, "Fish", nil, 100)
+                end)
+                addLog(string.format("📦 สั่งซื้อ %s (x100 กล่อง)...", selectedBait), Color3.fromRGB(52, 211, 153))
+            end
+            task.wait(1.5)
+        end
+        addLog("⏹ หยุดระบบ Auto Buy เหยื่อเรียบร้อย", Color3.fromRGB(156, 163, 175))
+    end)
+end
+
+local function startAutoOpenBaitLoop()
+    task.spawn(function()
+        addLog("🪱 เริ่มระบบ Auto Open: " .. selectedBait .. " (เปิดเรื่อยๆ)...", Color3.fromRGB(167, 139, 250))
+        while isAutoOpeningBait do
+            local count, key, toolObj = getCrateInfo(selectedBait)
+            if count <= 0 and not key and not toolObj then
+                addLog("⚠️ ยังไม่พบ " .. selectedBait .. " ในตัว (รอของเข้า...)", Color3.fromRGB(251, 191, 36))
+                task.wait(1)
+            else
+                local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                local tool = char:FindFirstChild(selectedBait) or (toolObj and toolObj.Parent == char and toolObj)
+                
+                if not tool then
+                    if key and equipRemote then
+                        pcall(function() equipRemote:FireServer(key) end)
+                    elseif toolObj then
+                        local hum = char:FindFirstChildOfClass("Humanoid")
+                        if hum then hum:EquipTool(toolObj) end
+                    end
+                    task.wait(0.3)
+                    tool = char:FindFirstChild(selectedBait)
+                end
+                
+                if tool then
+                    tool:Activate()
+                    addLog(string.format("✨ เปิด %s เรียบร้อย! (เหลือประมาณ %d)", selectedBait, count), Color3.fromRGB(52, 211, 153))
+                    task.wait(0.6)
+                else
+                    task.wait(0.3)
+                end
+            end
+        end
+        addLog("⏹ หยุดระบบ Auto Open เหยื่อเรียบร้อย", Color3.fromRGB(156, 163, 175))
+    end)
+end
+
+-- ===================================================================
+-- 🌌 AUTO BUY AURORA TOTEM FUNCTIONS
+-- ===================================================================
+local function getActiveAuroraTotems()
+    local list = {}
+    local interactables = workspace:FindFirstChild("world") and workspace.world:FindFirstChild("interactables")
+    local candidates = interactables and interactables:GetChildren() or {}
+    
+    for _, obj in ipairs(candidates) do
+        if obj.Name == "Aurora Totem" and obj:IsA("Model") then
+            local handle = obj:FindFirstChild("handle") or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+            if handle then
+                table.insert(list, { model = obj, handle = handle, pos = handle.Position })
+            end
+        end
+    end
+    
+    -- ค้นหาเพิ่มเติมใน workspace หากไม่อยู่ใน interactables
+    if #list == 0 then
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj.Name == "Aurora Totem" and obj:IsA("Model") then
+                local handle = obj:FindFirstChild("handle") or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                if handle then
+                    table.insert(list, { model = obj, handle = handle, pos = handle.Position })
+                end
+            end
+        end
+    end
+    
+    return list
+end
+
+local function findNearbyAuroraTotem(pos, maxDist)
+    local interactables = workspace:FindFirstChild("world") and workspace.world:FindFirstChild("interactables")
+    local candidates = interactables and interactables:GetChildren() or workspace:GetChildren()
+    local nearest = nil
+    local minDist = maxDist or 50
+    
+    for _, obj in ipairs(candidates) do
+        if obj.Name == "Aurora Totem" and obj:IsA("Model") then
+            local handle = obj:FindFirstChild("handle") or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+            if handle then
+                local dist = (pos - handle.Position).Magnitude
+                if dist <= minDist then
+                    minDist = dist
+                    nearest = obj
+                end
+            end
+        end
+    end
+    return nearest, minDist
+end
+
+local function buyTotem(totemModel)
+    local root = getRoot()
+    if not root or not totemModel then return false end
+    local handle = totemModel:FindFirstChild("handle") or totemModel.PrimaryPart or totemModel:FindFirstChildWhichIsA("BasePart")
+    if not handle then return false end
+    
+    -- วาร์ปเข้าประชิดแท่น Totem ในระยะ 1.5-2 studs
+    root.CFrame = CFrame.new(handle.Position + Vector3.new(0, 1.2, 1.8), handle.Position)
+    root.Velocity = Vector3.zero
+    root.RotVelocity = Vector3.zero
+    task.wait(0.35)
+    
+    -- 1. กด ProximityPrompt หากมี
+    local prompt = totemModel:FindFirstChildOfClass("ProximityPrompt") or totemModel:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if prompt then
+        pcall(function()
+            if fireproximityprompt then
+                fireproximityprompt(prompt, 0)
+            else
+                prompt:InputHoldBegin()
+                task.wait(0.05)
+                prompt:InputHoldEnd()
+            end
+        end)
+    end
+    
+    -- 2. ยิง RemoteFunction สั่งซื้อตรงผ่านเซิร์ฟเวอร์
+    if not auroraPurchaseRemote then
+        pcall(function()
+            auroraPurchaseRemote = Net:RemoteFunction("AuroraTotem/Purchase")
+        end)
+    end
+    
+    local boughtSuccess = false
+    if auroraPurchaseRemote then
+        local success, res1, res2 = pcall(function()
+            return auroraPurchaseRemote:InvokeServer(totemModel)
+        end)
+        if success and res1 == true then
+            addLog("💰 ซื้อ Aurora Totem สำเร็จเรียบร้อย!", Color3.fromRGB(52, 211, 153))
+            notify("Aurora Totem", "ซื้อ Aurora Totem สำเร็จ!", 3)
+            boughtSuccess = true
+        elseif success and res1 == false and res2 then
+            addLog("⚠️ เซิร์ฟเวอร์แจ้งเตือน: " .. tostring(res2), Color3.fromRGB(251, 191, 36))
+        end
+    end
+    
+    -- 3. Fallback ยิง purchase event
+    if not boughtSuccess and purchaseRemote then
+        pcall(function()
+            purchaseRemote:FireServer("Aurora Totem", "Item", nil, 1)
+        end)
+    end
+    
+    return boughtSuccess
+end
+
+local function startAuroraLoop()
+    task.spawn(function()
+        local root = getRoot()
+        local origCFrame = root and root.CFrame
+        local totalBought = 0
+        
+        LblAuroraStatus.Text = "🎯 สถานะ: กำลังค้นหา..."
+        LblAuroraStatus.TextColor3 = Color3.fromRGB(96, 165, 250)
+        addLog("🚀 เริ่มระบบ Auto Buy Aurora Totem...", Color3.fromRGB(96, 165, 250))
+        
+        repeat
+            -- ขั้นตอนที่ 1: ตรวจสอบแท่น Totem ที่เกิดอยู่ในแมพแบบ Real-time ทันที
+            local activeTotems = getActiveAuroraTotems()
+            if #activeTotems > 0 then
+                addLog(string.format("🔍 ตรวจพบ Aurora Totem ในแมพ %d จุด! กำลังวาร์ปไปซื้อ...", #activeTotems), Color3.fromRGB(147, 197, 253))
+                for idx, tData in ipairs(activeTotems) do
+                    if not isAuroraRunning then break end
+                    root = getRoot()
+                    if not root then break end
+                    
+                    LblAuroraWaypoint.Text = string.format("📍 วาร์ปไปแท่นสด: [%d/%d]", idx, #activeTotems)
+                    local bought = buyTotem(tData.model)
+                    if bought then
+                        totalBought = totalBought + 1
+                        LblAuroraBought.Text = string.format("💰 ซื้อสำเร็จแล้ว: %d อัน", totalBought)
+                    end
+                    task.wait(1.0)
+                end
+            end
+            
+            -- ขั้นตอนที่ 2: วาร์ปสแกนตามพิกัด 46 จุดเพื่อค้นหาจุดที่อาจยังโหลดไม่เสร็จ
+            if isAuroraRunning then
+                addLog("📍 เริ่มการสแกนค้นหาตามพิกัด 46 จุดทั่วแมพ...", Color3.fromRGB(192, 132, 252))
+                for index, pos in ipairs(AuroraPositions) do
+                    if not isAuroraRunning then break end
+                    root = getRoot()
+                    if not root then break end
+                    
+                    LblAuroraWaypoint.Text = string.format("📍 กำลังตรวจจุดที่: [%d/46]", index)
+                    root.CFrame = CFrame.new(pos + Vector3.new(0, 2, 0))
+                    root.Velocity = Vector3.zero
+                    root.RotVelocity = Vector3.zero
+                    task.wait(0.35)
+                    
+                    local totem, dist = findNearbyAuroraTotem(pos, 50)
+                    if totem then
+                        addLog(string.format("🎯 [%d/46] พบ Aurora Totem (ระยะ %.1f studs)! กำลังซื้อ...", index, dist), Color3.fromRGB(251, 191, 36))
+                        local bought = buyTotem(totem)
+                        if bought then
+                            totalBought = totalBought + 1
+                            LblAuroraBought.Text = string.format("💰 ซื้อสำเร็จแล้ว: %d อัน", totalBought)
+                        end
+                    end
+                    
+                    task.wait(1.0)
+                end
+            end
+            
+            if isAuroraRunning and auroraLoopForever then
+                addLog("⏳ วาร์ปครบทุกจุดแล้ว รอ 30 วินาทีก่อนเริ่มรอบใหม่...", Color3.fromRGB(156, 163, 175))
+                task.wait(30)
+            else
+                break
+            end
+        until not isAuroraRunning or not auroraLoopForever
+        
+        isAuroraRunning = false
+        ToggleAuroraBtn.BackgroundColor3 = Color3.fromRGB(55, 65, 81)
+        ToggleAuroraBtn.Text = "⚪ [OFF] Auto Buy Aurora (คลิกเพื่อเริ่มค้นหา 46 จุด)"
+        LblAuroraStatus.Text = "🎯 สถานะ: ปิดอยู่ (Standby)"
+        LblAuroraStatus.TextColor3 = Color3.fromRGB(156, 163, 175)
+        
+        if origCFrame and root then
+            task.wait(0.3)
+            root.CFrame = origCFrame
+            root.Velocity = Vector3.zero
+            addLog("📍 วาร์ปกลับจุดเดิมเรียบร้อย", Color3.fromRGB(96, 165, 250))
+        end
+        addLog(string.format("⏹ ระบบ Auto Aurora สิ้นสุดการทำงาน (ซื้อได้ %d อัน)", totalBought), Color3.fromRGB(167, 139, 250))
+    end)
+end
+
+-- ===================================================================
+-- 🔮 SHROUDED PEARL AUTO APPRAISE (MULTI-LAYER SAFETY & INSTANT HALT)
+-- ===================================================================
+local function getInventoryData()
+    return DataController.InventoryReplicator and DataController.InventoryReplicator.Data and DataController.InventoryReplicator.Data.Inventory
+end
+
+local function getAllPearls()
+    local inv = getInventoryData()
+    local pearls = {}
+    if inv then
+        for id, item in pairs(inv) do
+            if item.name == "Golden Sea Pearl" or (item.name and item.name:lower():find("golden sea pearl")) then
+                local mut = (item.sub and (item.sub.Mutation or item.sub.mutation)) or "None"
+                local isShrouded = (type(mut) == "string" and mut:lower():find("shrouded") ~= nil)
+                table.insert(pearls, { id = id, name = item.name, mutation = mut, isShrouded = isShrouded, sub = item.sub })
+            end
+        end
+    end
+    return pearls
+end
+
+local function countShroudedInInventory()
+    local inv = getInventoryData()
+    local count = 0
+    if inv then
+        for _, item in pairs(inv) do
+            if item.name and item.name:lower():find("pearl") then
+                local mut = item.sub and (item.sub.Mutation or item.sub.mutation)
+                if mut and type(mut) == "string" and mut:lower():find("shrouded") then
+                    count = count + 1
+                end
+            end
+        end
+    end
+    return count
+end
+
+local function updatePearlUI()
+    local pearls = getAllPearls()
+    local total, shrouded, pending = #pearls, 0, 0
+    for _, p in ipairs(pearls) do
+        if p.isShrouded then shrouded = shrouded + 1 else pending = pending + 1 end
+    end
+    LblPearlTotal.Text = string.format("📦 ไข่มุกในตัว: %d เม็ด", total)
+    LblPearlShrouded.Text = string.format("✨ ติด Shrouded: %d เม็ด", shrouded)
+    LblPearlPending.Text = string.format("⏳ ต้องรีเพิ่ม: %d เม็ด", pending)
+    return pearls
+end
+
+-- ดึงข้อมูล Tool ที่กำลังถืออยู่ในมือจริง ณ วินาทีนั้น
+local function getHeldPearlInfo()
+    local char = LocalPlayer.Character
+    local tool = char and char:FindFirstChildWhichIsA("Tool")
+    if not tool then return nil, nil, nil end
+    
+    local linkObj = tool:FindFirstChild("link")
+    local linkId = linkObj and linkObj.Value
+    
+    local attrMut = tool:GetAttribute("Mutation") or tool:GetAttribute("mutation")
+    local valMut = tool:FindFirstChild("values") and tool.values:FindFirstChild("Mutation") and tool.values.Mutation.Value
+    
+    return tool, linkId, (attrMut or valMut)
+end
+
+-- ตรวจสอบอย่างละเอียดรอบด้านทุกช่องทาง (Tool จริงในมือ + Link ID + Target ID + Attribute + Replicator)
+-- ตรวจสอบอย่างละเอียดรอบด้านทุกช่องทาง (Tool จริงในมือ + Link ID + Target ID + Attribute + Replicator)
+local function checkPearlHeldStatus(targetId)
+    local inv = getInventoryData()
+    local heldTool, heldLinkId, toolMut = getHeldPearlInfo()
+    
+    -- 1. ตรวจสอบ Tool ที่ถืออยู่ในมือจริงก่อนเป็นอันดับแรก (Priority 1)
+    if heldTool then
+        -- 1.1 ชื่อ Tool มีคำว่า shrouded หรือไม่
+        if heldTool.Name:lower():find("shrouded") then
+            return true, "Shrouded (Tool Name)", heldLinkId or targetId
+        end
+        -- 1.2 Tool Attribute หรือ Values
+        if toolMut and type(toolMut) == "string" and toolMut:lower():find("shrouded") then
+            return true, tostring(toolMut), heldLinkId or targetId
+        end
+        -- 1.3 ข้อมูลจาก Inventory ของเม็ดที่ถืออยู่ในมือจริง (นี่คือเม็ดที่ NPC กำลังรีจริง 100%)
+        if inv and heldLinkId and inv[heldLinkId] and inv[heldLinkId].sub then
+            local m = inv[heldLinkId].sub.Mutation or inv[heldLinkId].sub.mutation
+            local isShrouded = (type(m) == "string" and m:lower():find("shrouded") ~= nil)
+            return isShrouded, tostring(m or "None"), heldLinkId
+        end
+    end
+    
+    -- 2. หากยังไม่ได้ถือหรือหา Tool ในมือไม่เจอ จึงตรวจสอบจาก targetId ใน Inventory
+    if inv and targetId and inv[targetId] and inv[targetId].sub then
+        local m = inv[targetId].sub.Mutation or inv[targetId].sub.mutation
+        local isShrouded = (type(m) == "string" and m:lower():find("shrouded") ~= nil)
+        return isShrouded, tostring(m or "None"), targetId
+    end
+    
+    return false, "None", heldLinkId or targetId
+end
+
+-- 🛡️ ระบบเซฟตี้หยุดฉุกเฉิน (Instant Safety Interlock) ป้องกันรีทับ 100%
+local function emergencyStopPearlProtection()
+    -- 1. เก็บไอเทมกลับกระเป๋าทันที เพื่อไม่ให้ NPC รีทับได้
+    pcall(function()
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum:UnequipTools()
+        end
+    end)
+    
+    -- 2. ตัดการเชื่อมต่อ Dialog ทันที
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("dialoglink") then
+            char.dialoglink:Destroy()
+        end
+    end)
+    
+    -- 3. เล่นเสียงแจ้งเตือนความสำเร็จ
+    pcall(function()
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://9069609200"
+        sound.Volume = 1.2
+        sound.Parent = workspace
+        sound:Play()
+        game:GetService("Debris"):AddItem(sound, 3)
+    end)
+end
+
+-- ฟังก์ชันดึงไข่มุกมาถือให้ตรงเม็ดเป้าหมายจริง 100%
+local function equipTargetPearl(targetId)
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not hum then return nil end
+    
+    -- 1. ถ้าในมือถือเม็ดที่มี link ตรงกับ targetId อยู่แล้ว
+    local currentTool = char:FindFirstChildWhichIsA("Tool")
+    if currentTool and currentTool:FindFirstChild("link") and currentTool.link.Value == targetId then
+        return currentTool
+    end
+    
+    -- 2. ค้นหาใน Backpack ตาม link.Value ให้ตรงกับ targetId
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:IsA("Tool") and t.Name:lower():find("pearl") then
+                local link = t:FindFirstChild("link")
+                if link and link.Value == targetId then
+                    hum:EquipTool(t)
+                    task.wait(0.3)
+                    return t
+                end
+            end
+        end
+    end
+    
+    -- 3. ขอ Server สวมใส่ผ่าน Remote
+    pcall(function() equipRemote:FireServer(targetId) end)
+    task.wait(0.35)
+    
+    -- 4. ตรวจสอบว่ามีอะไรในมือหรือยัง หากยังไม่มีให้ถือ Pearl เม็ดใดก็ได้ที่มี
+    local afterTool = char:FindFirstChildWhichIsA("Tool")
+    if not afterTool and bp then
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:IsA("Tool") and t.Name:lower():find("pearl") then
+                hum:EquipTool(t)
+                task.wait(0.3)
+                return t
+            end
+        end
+    end
+    
+    return afterTool
+end
+
+local function startPearlLoop()
+    if isPearlRunning then return end
+    isPearlRunning = true
+    StartPearlBtn.Text = "⚡ กำลังทำงาน..."
+    StartPearlBtn.BackgroundColor3 = Color3.fromRGB(100, 116, 139)
+    LblPearlProgress.Text = "🎯 สถานะ: กำลังทำงาน..."
+    LblPearlProgress.TextColor3 = Color3.fromRGB(52, 211, 153)
+    
+    local appraiser = workspace:FindFirstChild("world") and workspace.world:FindFirstChild("npcs") and workspace.world.npcs:FindFirstChild("Appraiser")
+    if not appraiser then appraiser = workspace:FindFirstChild("Appraiser", true) end
+    local prompt = appraiser and (appraiser:FindFirstChildOfClass("ProximityPrompt") or appraiser:FindFirstChildWhichIsA("ProximityPrompt", true))
+    
+    local root = getRoot()
+    if not root or not appraiser or not prompt then
+        addLog("❌ ไม่พบ NPC Appraiser", Color3.fromRGB(248, 113, 113))
+        isPearlRunning = false
+        StartPearlBtn.Text = "▶ เริ่มรีไข่มุก (Start)"
+        StartPearlBtn.BackgroundColor3 = Color3.fromRGB(16, 185, 129)
+        LblPearlProgress.Text = "🎯 สถานะ: ปิดอยู่ (Standby)"
+        LblPearlProgress.TextColor3 = Color3.fromRGB(156, 163, 175)
+        return
+    end
+    
+    local origPos = root.CFrame
+    root.CFrame = CFrame.new(448.2, 150.54, 206.45)
+    root.Velocity = Vector3.zero
+    task.wait(0.5)
+    
+    while isPearlRunning do
+        local pearls = updatePearlUI()
+        local pending = {}
+        for _, p in ipairs(pearls) do if not p.isShrouded then table.insert(pending, p) end end
+        
+        if #pending == 0 then
+            addLog("🎉 ไข่มุกทุกเม็ดติด Shrouded ครบ 100% แล้ว!", Color3.fromRGB(52, 211, 153))
+            notify("🎉 Shrouded Hub", "ไข่มุกทุกเม็ดติด Shrouded ครบแล้ว!", 6)
+            break
+        end
+        
+        local currentTarget = pending[1]
+        equipTargetPearl(currentTarget.id)
+        task.wait(0.3)
+        
+        -- หา ID จริงของเม็ดที่กำลังถืออยู่ในมือ
+        local _, activeHeldId = getHeldPearlInfo()
+        local activePearlId = activeHeldId or currentTarget.id
+        
+        -- ตรวจสอบก่อนเริ่ม: เม็ดนี้ติด Shrouded อยู่แล้วหรือไม่
+        local initShrouded, initMut = checkPearlHeldStatus(activePearlId)
+        if initShrouded then
+            emergencyStopPearlProtection()
+            addLog(string.format("✨ เม็ดนี้ติด Shrouded อยู่แล้ว! (ข้าม)", tostring(activePearlId)), Color3.fromRGB(52, 211, 153))
+            updatePearlUI()
+            task.wait(0.5)
+            continue
+        end
+        
+        local baselineShroudedCount = countShroudedInInventory()
+        local lastLoggedMut = ""
+        local attempts = 0
+        LblPearlProgress.Text = string.format("🎯 กำลังรีเม็ดที่เหลือ (เหลือ %d เม็ด)", #pending)
+        addLog(string.format("🔮 เริ่มรีไข่มุก ID: ...%s", tostring(activePearlId):sub(-6)), Color3.fromRGB(192, 132, 252))
+        
+        while isPearlRunning and attempts < 1500 do
+            -- ตรวจสอบ ID ล่าสุดในมือเสมอ (เผื่อเซิร์ฟเวอร์เปลี่ยน ID หลังรี)
+            local _, curHeldId = getHeldPearlInfo()
+            if curHeldId then activePearlId = curHeldId end
+            
+            -- 🛡️ ตรวจสอบก่อนเริ่มรอบใหม่
+            local isShrouded, curMut = checkPearlHeldStatus(activePearlId)
+            local currentShroudedCount = countShroudedInInventory()
+            LblPearlCurMut.Text = string.format("🔮 มิวเทชันล่าสุด: %s (รอบที่ %d)", tostring(curMut), attempts)
+            
+            if isShrouded or currentShroudedCount > baselineShroudedCount then
+                emergencyStopPearlProtection()
+                addLog(string.format("🎉 สำเร็จ! ได้รับ Shrouded เรียบร้อยแล้ว! (ใช้ไป %d รอบ)", attempts), Color3.fromRGB(52, 211, 153))
+                notify("Shrouded Hub", "✅ ติด Shrouded แล้ว 1 เม็ด! (เก็บเข้ากระเป๋าทันที)", 4)
+                updatePearlUI()
+                break
+            end
+            
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("dialoglink") then char.dialoglink:Destroy() end
+            ProximityPromptService.Enabled = true
+            
+            if (root.Position - Vector3.new(448.2, 150.54, 206.45)).Magnitude > 6 then
+                root.CFrame = CFrame.new(448.2, 150.54, 206.45)
+                root.Velocity = Vector3.zero
+            end
+            
+            local dialogStarted = false
+            local conn = dialogStartEvent.OnClientEvent:Connect(function() dialogStarted = true end)
+            prompt:InputHoldBegin()
+            task.wait(0.04)
+            prompt:InputHoldEnd()
+            if fireproximityprompt then fireproximityprompt(prompt, 0) end
+            
+            local t0 = tick()
+            while tick() - t0 < 1.2 do
+                if dialogStarted then break end
+                task.wait(0.04)
+            end
+            conn:Disconnect()
+            
+            if dialogStarted then
+                attempts = attempts + 1
+                task.wait(0.08)
+                pcall(function() dialogInteract:InvokeServer(1, 1) end)
+                task.wait(0.12)
+                pcall(function() dialogInteract:InvokeServer(3, 1) end)
+                
+                -- 🛡️ ACTIVE POLLING FOR REPLICATION (เช็กผลลัพธ์ทันที รอแพ็กเก็ตอัปเดต ไม่รีต่อก่อนผลออก)
+                local gotShrouded = false
+                local pollStart = tick()
+                local pollMut = "None"
+                
+                while tick() - pollStart < 0.9 do
+                    local _, liveHeldId = getHeldPearlInfo()
+                    if liveHeldId then activePearlId = liveHeldId end
+                    local sCheck, sMut = checkPearlHeldStatus(activePearlId)
+                    pollMut = sMut
+                    if sCheck or countShroudedInInventory() > baselineShroudedCount then
+                        gotShrouded = true
+                        break
+                    end
+                    task.wait(0.06)
+                end
+                
+                -- บันทึก Log เมื่อครบทุก 10 รอบ หรือเมื่อมิวเทชันเปลี่ยนใหม่ (ไม่สแปมข้อความซ้ำรัวๆ)
+                local shouldLog = (attempts % 10 == 0) or (pollMut ~= "None" and pollMut ~= lastLoggedMut)
+                if shouldLog then
+                    lastLoggedMut = pollMut
+                    addLog(string.format("รอบที่ #%d -> %s", attempts, tostring(pollMut)), Color3.fromRGB(156, 163, 175))
+                end
+                
+                -- 🛡️ หากติด Shrouded ให้หยุดรอบและเก็บเข้ากระเป๋าทันทีในวินาทีนี้เลย!
+                if gotShrouded then
+                    emergencyStopPearlProtection()
+                    addLog(string.format("🎉 สำเร็จ! ได้รับ Shrouded เรียบร้อยแล้ว! (ใช้ไป %d รอบ)", attempts), Color3.fromRGB(52, 211, 153))
+                    notify("Shrouded Hub", "✅ ติด Shrouded แล้ว 1 เม็ด! (เก็บเข้ากระเป๋าทันที)", 4)
+                    updatePearlUI()
+                    break
+                end
+            else
+                task.wait(0.2)
+            end
+            task.wait(0.35)
+        end
+        task.wait(0.6)
+    end
+    
+    isPearlRunning = false
+    StartPearlBtn.Text = "▶ เริ่มรีไข่มุก (Start)"
+    StartPearlBtn.BackgroundColor3 = Color3.fromRGB(16, 185, 129)
+    LblPearlProgress.Text = "🎯 สถานะ: ปิดอยู่ (Standby)"
+    LblPearlProgress.TextColor3 = Color3.fromRGB(156, 163, 175)
+    
+    if origPos then
+        task.wait(0.5)
+        root.CFrame = origPos
+        root.Velocity = Vector3.zero
+        addLog("📍 วาร์ปกลับจุดฟาร์มเดิมเรียบร้อย", Color3.fromRGB(96, 165, 250))
+    end
+end
+
+-- ===================================================================
+-- 🔘 BUTTON EVENTS
+-- ===================================================================
+StartPearlBtn.MouseButton1Click:Connect(function() task.spawn(startPearlLoop) end)
+StopPearlBtn.MouseButton1Click:Connect(function()
+    isPearlRunning = false
+    emergencyStopPearlProtection()
+    addLog("⏹ สั่งหยุดรีไข่มุกเรียบร้อย", Color3.fromRGB(248, 113, 113))
+end)
+RefreshPearlBtn.MouseButton1Click:Connect(function()
+    updatePearlUI()
+    addLog("🔄 อัปเดตข้อมูลไข่มุกในกระเป๋าเรียบร้อย", Color3.fromRGB(147, 197, 253))
+end)
+
+BuyAllMerlinBtn.MouseButton1Click:Connect(function() buyMerlinBuffs(true) end)
+
+-- ปุ่มคลิกสลับสถานะเปิด / ปิด Auto-Renew Merlin
+ToggleMerlinAuto.MouseButton1Click:Connect(function()
+    autoRenewMerlin = not autoRenewMerlin
+    ToggleMerlinAuto.BackgroundColor3 = autoRenewMerlin and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(55, 65, 81)
+    ToggleMerlinAuto.Text = autoRenewMerlin and "🟢 [ON] Auto-Renew ทำงานอยู่ (คลิกเพื่อปิด)" or "⚪ [OFF] Auto-Renew ปิดอยู่ (คลิกเพื่อเปิด)"
+    LblMerlinMode.Text = "🌐 สถานะ Auto-Renew: " .. (autoRenewMerlin and "เปิดทำงาน (Active)" or "ปิดอยู่ (Disabled)")
+    LblMerlinMode.TextColor3 = autoRenewMerlin and Color3.fromRGB(52, 211, 153) or Color3.fromRGB(156, 163, 175)
+    addLog("🧙‍♂️ Auto-Renew Merlin: " .. (autoRenewMerlin and "เปิดใช้งาน" or "ปิดใช้งาน"), Color3.fromRGB(167, 139, 250))
+end)
+
+-- ปุ่มคลิกสลับสถานะเปิด / ปิด Auto Buy เหยื่อ
+ToggleAutoBuyBait.MouseButton1Click:Connect(function()
+    isAutoBuyingBait = not isAutoBuyingBait
+    ToggleAutoBuyBait.BackgroundColor3 = isAutoBuyingBait and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(55, 65, 81)
+    ToggleAutoBuyBait.Text = isAutoBuyingBait and "🟢 [ON] Auto Buy ทำงานอยู่ (คลิกเพื่อหยุด)" or "⚪ [OFF] Auto Buy เหยื่อ (คลิกเพื่อเริ่มซื้อเรื่อยๆ)"
+    if isAutoBuyingBait then
+        startAutoBuyBaitLoop()
+    end
+end)
+
+-- ปุ่มคลิกสลับสถานะเปิด / ปิด Auto Open เหยื่อ
+ToggleAutoOpenBait.MouseButton1Click:Connect(function()
+    isAutoOpeningBait = not isAutoOpeningBait
+    ToggleAutoOpenBait.BackgroundColor3 = isAutoOpeningBait and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(55, 65, 81)
+    ToggleAutoOpenBait.Text = isAutoOpeningBait and "🟢 [ON] Auto Open ทำงานอยู่ (คลิกเพื่อหยุด)" or "⚪ [OFF] Auto Open เหยื่อ (คลิกเพื่อเริ่มเปิดเรื่อยๆ)"
+    if isAutoOpeningBait then
+        startAutoOpenBaitLoop()
+    end
+end)
+
+BuyCrabTrapBtn.MouseButton1Click:Connect(function() buyItem("Crab Trap", "Item", 1) end)
+BuyReinforcedTrapBtn.MouseButton1Click:Connect(function() buyItem("Reinforced Crab Trap", "Item", 1) end)
+
+-- ปุ่มคลิกสลับสถานะเปิด / ปิด Auto Buy Aurora Totem
+ToggleAuroraBtn.MouseButton1Click:Connect(function()
+    isAuroraRunning = not isAuroraRunning
+    ToggleAuroraBtn.BackgroundColor3 = isAuroraRunning and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(55, 65, 81)
+    ToggleAuroraBtn.Text = isAuroraRunning and "🟢 [ON] Auto Aurora กำลังทำงาน... (คลิกเพื่อหยุด)" or "⚪ [OFF] Auto Buy Aurora (คลิกเพื่อเริ่มค้นหา 46 จุด)"
+    if isAuroraRunning then
+        startAuroraLoop()
+    end
+end)
+
+-- ปุ่มคลิกเปิด / ปิด Loop วนซ้ำรอบใหม่
+ToggleAuroraLoopBtn.MouseButton1Click:Connect(function()
+    auroraLoopForever = not auroraLoopForever
+    ToggleAuroraLoopBtn.BackgroundColor3 = auroraLoopForever and Color3.fromRGB(138, 92, 246) or Color3.fromRGB(39, 39, 52)
+    ToggleAuroraLoopBtn.Text = auroraLoopForever and "🔁 โหมดวนซ้ำรอบใหม่: เปิดอยู่ (วนซ้ำเรื่อยๆ)" or "🔁 โหมดวนซ้ำรอบใหม่: ปิดอยู่ (วิ่งรอบเดียวจบ)"
+    addLog("🌌 Aurora Loop Mode: " .. (auroraLoopForever and "เปิดวนซ้ำเรื่อยๆ" or "วิ่งรอบเดียวจบ"), Color3.fromRGB(192, 132, 252))
+end)
+
+-- ===================================================================
+-- ⚡ OLYMPUS QUEST FUNCTIONS (หมุนกระจก 5 จุด & ส่งเควสดาบ)
+-- ===================================================================
+local mirrorPoints = {
+    { pos = Vector3.new(-8771, -2900.13, 731.17), times = 5 },
+    { pos = Vector3.new(-8890.45, -2887.56, 799.18), times = 7 },
+    { pos = Vector3.new(-8852.26, -2877.19, 705.93), times = 3 },
+    { pos = Vector3.new(-8799.24, -2854.69, 695.57), times = 3 },
+    { pos = Vector3.new(-8809.42, -2802.7, 786.34), times = 7 }
+}
+
+local MIRROR_WAIT_WARP = 1.5
+local MIRROR_WAIT_E = 1.0
+local PROMPT_RADIUS = 25
+
+local swordPoints = {
+    Vector3.new(-8631.29, -2344.54, 623.95),
+    Vector3.new(-8935.8, -2351.45, 799.07),
+    Vector3.new(-8923.28, -2319.5, 962.54),
+    Vector3.new(-8741.68, -2360.79, 688.97),
+    Vector3.new(-8989.56, -2292.09, 218.77),
+    Vector3.new(-9040.5, -2345.4, 1044.24),
+    Vector3.new(-8704.65, -2344.42, 907.28),
+    Vector3.new(-8484.81, -2360.91, 542.16),
+    Vector3.new(-8951.5, -2288.49, 105.18)
+}
+
+local FINAL_SWORD_POINT = Vector3.new(-8568.52, -2345.85, 692.92)
+local EXTRA_SWORD_POINT = Vector3.new(-8472.97, -2361.36, 726.87)
+local HELMET_SWORD_POINT = Vector3.new(-8631.29, -2344.54, 623.95)
+local SWORD_WAIT_WARP = 1.5
+local SWORD_WAIT_COLLECT = 1.0
+
+local function triggerPrompt(prompt)
+    if not prompt or not prompt.Enabled then return false end
+    pcall(function()
+        if fireproximityprompt then
+            fireproximityprompt(prompt, 0)
+        else
+            prompt:InputHoldBegin()
+            task.wait(0.08)
+            prompt:InputHoldEnd()
+        end
+    end)
+    return true
+end
+
+local function getNearestPrompt(radius)
+    radius = radius or PROMPT_RADIUS
+    local root = getRoot()
+    if not root then return nil, 9999 end
+    
+    local nearest = nil
+    local nearestDistance = radius
+    
+    for _, prompt in ipairs(workspace:GetDescendants()) do
+        if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+            local parent = prompt.Parent
+            local position = nil
+            if parent:IsA("BasePart") then
+                position = parent.Position
+            elseif parent:IsA("Attachment") then
+                position = parent.WorldPosition
+            elseif parent:IsA("Model") then
+                position = parent:GetPivot().Position
+            end
+            
+            if position then
+                local distance = (position - root.Position).Magnitude
+                if distance <= nearestDistance then
+                    nearest = prompt
+                    nearestDistance = distance
+                end
+            end
+        end
+    end
+    return nearest, nearestDistance
+end
+
+local function collectNearbyPrompts(radius, times)
+    radius = radius or PROMPT_RADIUS
+    times = times or 1
+    local root = getRoot()
+    if not root then return end
+    
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") and obj.Enabled then
+            local parent = obj.Parent
+            local pos = nil
+            if parent:IsA("BasePart") then
+                pos = parent.Position
+            elseif parent:IsA("Attachment") then
+                pos = parent.WorldPosition
+            elseif parent:IsA("Model") then
+                pos = parent:GetPivot().Position
+            end
+            
+            if pos and (pos - root.Position).Magnitude <= radius then
+                for i = 1, times do
+                    triggerPrompt(obj)
+                    task.wait(0.15)
+                end
+            end
+        end
+    end
+end
+
+local function equipBackpackTool(toolName)
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    if char:FindFirstChild(toolName) then return true end
+    
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then
+        local tool = bp:FindFirstChild(toolName)
+        if tool then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum:EquipTool(tool)
+                task.wait(0.3)
+                return true
+            end
+        end
+    end
+    
+    pcall(function()
+        if equipRemote then
+            equipRemote:FireServer(toolName)
+        end
+    end)
+    return false
+end
+
+local function runMirror()
+    if isMirrorRunning then
+        isMirrorRunning = false
+        addLog("⏹ สั่งหยุดระบบหมุนกระจกเรียบร้อย", Color3.fromRGB(248, 113, 113))
+        return
+    end
+    if isSwordRunning then
+        notify("เควส", "กำลังทำงานเควสดาบอยู่ กรุณารอให้เสร็จก่อน", 3)
+        return
+    end
+    
+    local root = getRoot()
+    if not root then
+        addLog("❌ ไม่พบตัวละคร ไม่สามารถเริ่มหมุนกระจกได้", Color3.fromRGB(248, 113, 113))
+        return
+    end
+    
+    isMirrorRunning = true
+    lastSavedOlympusPos = root.CFrame
+    MirrorQuestBtn.BackgroundColor3 = Color3.fromRGB(245, 158, 11)
+    MirrorQuestBtn.Text = "⏳ กำลังหมุนกระจก... (คลิกเพื่อยกเลิก)"
+    LblMirrorStatus.TextColor3 = Color3.fromRGB(251, 191, 36)
+    LblMirrorStatus.Text = "🎯 เริ่มหมุนกระจก (ทั้งหมด 5 จุด)..."
+    addLog("🪞 เริ่มระบบ Auto หมุนกระจกโอลิมปัส (5 จุด)...", Color3.fromRGB(251, 191, 36))
+    notify("Olympus", "🪞 เริ่มต้นระบบหมุนกระจก 5 จุด!", 3)
+    
+    task.spawn(function()
+        for idx, data in ipairs(mirrorPoints) do
+            if not isMirrorRunning then break end
+            
+            MirrorQuestBtn.Text = string.format("🪞 หมุนกระจกจุดที่ [%d/5]...", idx)
+            LblMirrorStatus.Text = string.format("📍 กำลังวาร์ปไปจุดที่ [%d/5] (หมุน %d ครั้ง)", idx, data.times)
+            addLog(string.format("📍 วาร์ปไปจุดกระจก [%d/5]: หมุน %d ครั้ง", idx, data.times), Color3.fromRGB(147, 197, 253))
+            
+            teleportPlayer(CFrame.new(data.pos))
+            task.wait(MIRROR_WAIT_WARP)
+            
+            for i = 1, data.times do
+                if not isMirrorRunning then break end
+                
+                local prompt, dist = getNearestPrompt(PROMPT_RADIUS)
+                if prompt then
+                    triggerPrompt(prompt)
+                    addLog(string.format("🪞 จุดที่ %d: หมุนรอบที่ %d/%d (ระยะ %.1f studs)", idx, i, data.times, dist), Color3.fromRGB(52, 211, 153))
+                else
+                    addLog(string.format("⚠️ จุดที่ %d: ไม่พบ Prompt กระจกในระยะ %d studs (รอบ %d/%d)", idx, PROMPT_RADIUS, i, data.times), Color3.fromRGB(251, 191, 36))
+                end
+                task.wait(MIRROR_WAIT_E)
+            end
+            
+            task.wait(0.5)
+        end
+        
+        if isMirrorRunning then
+            addLog("🎉 หมุนกระจกโอลิมปัสครบทั้ง 5 จุดเรียบร้อยแล้ว!", Color3.fromRGB(52, 211, 153))
+            notify("Olympus", "🎉 หมุนกระจกเสร็จสมบูรณ์!", 5)
+            LblMirrorStatus.Text = "✅ หมุนกระจกเสร็จสิ้นครบ 5 จุด!"
+            LblMirrorStatus.TextColor3 = Color3.fromRGB(52, 211, 153)
+        else
+            LblMirrorStatus.Text = "⏹ ยกเลิกการหมุนกระจกแล้ว"
+            LblMirrorStatus.TextColor3 = Color3.fromRGB(248, 113, 113)
+        end
+        
+        isMirrorRunning = false
+        MirrorQuestBtn.BackgroundColor3 = Color3.fromRGB(16, 185, 129)
+        MirrorQuestBtn.Text = "🪞 [เริ่ม] ออโต้หมุนกระจก 5 จุด (Auto Rotate Mirrors)"
+    end)
+end
+
+local function runSwordQuest()
+    if isSwordRunning then
+        isSwordRunning = false
+        addLog("⏹ สั่งหยุดส่งเควสดาบเรียบร้อย", Color3.fromRGB(248, 113, 113))
+        return
+    end
+    if isMirrorRunning then
+        notify("เควส", "กำลังทำงานหมุนกระจกอยู่ กรุณารอให้เสร็จก่อน", 3)
+        return
+    end
+    
+    local root = getRoot()
+    if not root then
+        addLog("❌ ไม่พบตัวละคร ไม่สามารถเริ่มเควสดาบได้", Color3.fromRGB(248, 113, 113))
+        return
+    end
+    
+    isSwordRunning = true
+    lastSavedOlympusPos = root.CFrame
+    SwordQuestBtn.BackgroundColor3 = Color3.fromRGB(245, 158, 11)
+    SwordQuestBtn.Text = "⏳ กำลังส่งเควสดาบ... (คลิกเพื่อยกเลิก)"
+    LblSwordStatus.TextColor3 = Color3.fromRGB(251, 191, 36)
+    LblSwordStatus.Text = "🎯 กำลังเริ่มส่งเควสดาบโอลิมปัส..."
+    addLog("⚔️ เริ่มต้นเควสดาบโอลิมปัส (เก็บ 9 จุด + สวมดาบ/หมวก)...", Color3.fromRGB(251, 191, 36))
+    notify("Olympus", "⚔️ เริ่มต้นเควสดาบโอลิมปัส!", 3)
+    
+    task.spawn(function()
+        -- 1. วาร์ปเก็บดาบ 9 จุด
+        for idx, pos in ipairs(swordPoints) do
+            if not isSwordRunning then break end
+            SwordQuestBtn.Text = string.format("⚔️ เก็บดาบจุดที่ [%d/9]...", idx)
+            LblSwordStatus.Text = string.format("📍 กำลังเก็บดาบจุดที่ [%d/9]", idx)
+            teleportPlayer(CFrame.new(pos))
+            task.wait(SWORD_WAIT_WARP)
+            collectNearbyPrompts(PROMPT_RADIUS, 1)
+            addLog(string.format("⚔️ เก็บดาบจุดที่ [%d/9] เรียบร้อย", idx), Color3.fromRGB(147, 197, 253))
+            task.wait(SWORD_WAIT_COLLECT)
+        end
+        
+        -- 2. วาร์ปส่งเควสจุดสุดท้าย (สวม Bellona Sword + กด 5 ครั้ง)
+        if isSwordRunning then
+            SwordQuestBtn.Text = "⚔️ กำลังส่งเควส Bellona Sword..."
+            LblSwordStatus.Text = "📍 วาร์ปไปแท่นดาบ & สวม Bellona Sword"
+            teleportPlayer(CFrame.new(FINAL_SWORD_POINT))
+            task.wait(SWORD_WAIT_WARP)
+            
+            equipBackpackTool("Bellona Sword")
+            task.wait(1.0)
+            collectNearbyPrompts(PROMPT_RADIUS, 5)
+            addLog("⚔️ ส่งเควส Bellona Sword (กด 5 ครั้ง) สำเร็จ!", Color3.fromRGB(52, 211, 153))
+            task.wait(5.0)
+        end
+        
+        -- 3. วาร์ปจุดเสริม Extra Point (กด 1 ครั้ง)
+        if isSwordRunning then
+            SwordQuestBtn.Text = "⚔️ กำลังส่งเควสจุดเสริม..."
+            LblSwordStatus.Text = "📍 วาร์ปไปจุดเสริม Extra Point"
+            teleportPlayer(CFrame.new(EXTRA_SWORD_POINT))
+            task.wait(SWORD_WAIT_WARP)
+            collectNearbyPrompts(PROMPT_RADIUS, 1)
+            addLog("⚔️ ส่งเควสจุดเสริม (กด 1 ครั้ง) สำเร็จ!", Color3.fromRGB(147, 197, 253))
+            task.wait(SWORD_WAIT_COLLECT)
+        end
+        
+        -- 4. วาร์ปจุด Helmet (สวม Royal Helmet + กด 3 ครั้ง)
+        if isSwordRunning then
+            SwordQuestBtn.Text = "⚔️ กำลังส่งเควส Royal Helmet..."
+            LblSwordStatus.Text = "📍 วาร์ปไปจุด Helmet & สวม Royal Helmet"
+            teleportPlayer(CFrame.new(HELMET_SWORD_POINT))
+            task.wait(SWORD_WAIT_WARP)
+            
+            equipBackpackTool("Royal Helmet")
+            task.wait(1.0)
+            collectNearbyPrompts(PROMPT_RADIUS, 3)
+            addLog("⚔️ ส่งเควส Royal Helmet (กด 3 ครั้ง) สำเร็จ!", Color3.fromRGB(52, 211, 153))
+        end
+        
+        if isSwordRunning then
+            addLog("🎉 ส่งเควสดาบโอลิมปัสเสร็จสิ้นสมบูรณ์!", Color3.fromRGB(52, 211, 153))
+            notify("Olympus", "🎉 ส่งเควสดาบเสร็จสมบูรณ์!", 5)
+            LblSwordStatus.Text = "✅ ส่งเควสดาบเสร็จสิ้นสมบูรณ์!"
+            LblSwordStatus.TextColor3 = Color3.fromRGB(52, 211, 153)
+        else
+            LblSwordStatus.Text = "⏹ ยกเลิกเควสดาบแล้ว"
+            LblSwordStatus.TextColor3 = Color3.fromRGB(248, 113, 113)
+        end
+        
+        isSwordRunning = false
+        SwordQuestBtn.BackgroundColor3 = Color3.fromRGB(138, 92, 246)
+        SwordQuestBtn.Text = "⚔️ [เริ่ม] ออโต้ส่งเควสดาบ (Auto Sword Quest)"
+    end)
+end
+
+-- ผูกปุ่มเควสโอลิมปัส
+MirrorQuestBtn.MouseButton1Click:Connect(runMirror)
+SwordQuestBtn.MouseButton1Click:Connect(runSwordQuest)
+
+StopOlympusQuestBtn.MouseButton1Click:Connect(function()
+    if isMirrorRunning or isSwordRunning then
+        isMirrorRunning = false
+        isSwordRunning = false
+        addLog("⏹ สั่งยกเลิกเควสโอลิมปัสทั้งหมดเรียบร้อย", Color3.fromRGB(248, 113, 113))
+        notify("Olympus", "สั่งหยุดเควสเรียบร้อย", 3)
+    else
+        addLog("ℹ️ ไม่มีการทำงานเควสใดที่เปิดอยู่", Color3.fromRGB(156, 163, 175))
+    end
+end)
+
+-- ===================================================================
+-- 🔄 BACKGROUND MONITOR (ตรวจแสดงผล UI อย่างเดียว ไม่ซื้อ/ไม่วาร์ปเอง)
+-- ===================================================================
+task.spawn(function()
+    updatePearlUI()
+    checkMerlinBuffs()
+    addLog("🔒 Pond Hub โหลดสำเร็จ! (ทุกฟังก์ชันอยู่ในโหมด Standby ปิดอยู่)", Color3.fromRGB(167, 139, 250))
+    notify("Pond Hub", "โหลดสำเร็จ! กดปุ่ม [ Z ] เพื่อเปิด/ปิด UI", 4)
+    
+    while true do
+        task.wait(10)
+        local buffs = checkMerlinBuffs()
+        if autoRenewMerlin and not isBuyingMerlin then
+            local isOtherBusy = isPearlRunning or isMirrorRunning or isSwordRunning or isAuroraRunning
+            if not isOtherBusy or hasMerlinSession then
+                local needLucky = not buffs.Lucky.active or buffs.Lucky.remaining <= 120
+                local needInsight = not buffs.Insight.active or buffs.Insight.remaining <= 120
+                local needLure = not buffs.Lure.active or buffs.Lure.remaining <= 120
+                if needLucky or needInsight or needLure then
+                    executeMerlinBuffs(needLucky, needLure, needInsight, false)
+                end
+            end
+        end
+    end
 end)
