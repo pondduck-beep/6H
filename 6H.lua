@@ -371,15 +371,22 @@ LogLayout.SortOrder = Enum.SortOrder.LayoutOrder
 LogLayout.Padding = UDim.new(0, 3)
 LogLayout.Parent = LogScroll
 
--- ฟังก์ชันบันทึกข้อความลงไฟล์ workspace ของ Executor อัตโนมัติ
+-- ไฟล์บันทึก Log แยกตามชื่อบัญชีผู้ใช้ (ป้องกันการเขียนทับเมื่อเปิดหลายไอดี)
+local logFileName = string.format("pond_hub_log_%s.txt", LocalPlayer.Name)
+
+-- ฟังก์ชันบันทึกข้อความลงไฟล์ workspace ของ Executor อัตโนมัติ (แยกตามไอดี)
 local function appendLogToWorkspace(lineText)
     pcall(function()
+        if isfile and not isfile(logFileName) then
+            if writefile then writefile(logFileName, lineText .. "\n") end
+            return
+        end
         if appendfile then
-            appendfile("pond_hub_log.txt", lineText .. "\n")
+            appendfile(logFileName, lineText .. "\n")
         elseif writefile then
             local existing = ""
-            pcall(function() existing = readfile("pond_hub_log.txt") end)
-            writefile("pond_hub_log.txt", existing .. lineText .. "\n")
+            pcall(function() existing = readfile(logFileName) end)
+            writefile(logFileName, existing .. lineText .. "\n")
         end
     end)
 end
@@ -394,7 +401,7 @@ local function addLog(text, color)
     local timeStr = os.date("%X")
     local formatted = string.format("[%s] %s", timeStr, text)
     
-    -- บันทึกลงไฟล์ workspace ทันที
+    -- บันทึกลงไฟล์ workspace ทันที (แยกตามไอดี)
     appendLogToWorkspace(formatted)
     
     -- จำกัดจำนวน TextLabel ในหน้าต่าง GUI ไม่ให้เกิน 50 บรรทัด (ป้องกัน UI แลก/บั๊ก/ค้าง)
@@ -432,7 +439,7 @@ end)
 SaveLogBtn.MouseButton1Click:Connect(function()
     local allLines = {}
     table.insert(allLines, "===================================================================")
-    table.insert(allLines, "📜 Pond Hub - Activity Log Dump")
+    table.insert(allLines, string.format("📜 Pond Hub - Activity Log Dump (%s)", LocalPlayer.Name))
     table.insert(allLines, "⏰ Saved At: " .. os.date("%Y-%m-%d %X"))
     table.insert(allLines, "===================================================================")
     for _, c in ipairs(LogScroll:GetChildren()) do
@@ -440,11 +447,11 @@ SaveLogBtn.MouseButton1Click:Connect(function()
     end
     pcall(function()
         if writefile then
-            writefile("pond_hub_log.txt", table.concat(allLines, "\n") .. "\n")
+            writefile(logFileName, table.concat(allLines, "\n") .. "\n")
         end
     end)
-    addLog("💾 บันทึก Log ลง workspace/pond_hub_log.txt เรียบร้อย", Color3.fromRGB(52, 211, 153))
-    notify("Pond Hub", "บันทึก Log ลง workspace สำเร็จ!", 3)
+    addLog(string.format("💾 บันทึก Log ลง workspace/%s เรียบร้อย", logFileName), Color3.fromRGB(52, 211, 153))
+    notify("Pond Hub", string.format("บันทึก Log ลง %s สำเร็จ!", logFileName), 3)
 end)
 
 -- ===================================================================
@@ -1986,9 +1993,50 @@ local function startPearlLoop()
     end
     
     local origPos = root.CFrame
-    root.CFrame = CFrame.new(448.2, 150.54, 206.45)
+    
+    -- กระจายตำแหน่งยืนรอบตัว NPC เล็กน้อยตาม UserId (ป้องกันตัวละคร 4 ไอดีชนกัน/ผลักกันตกแท่น)
+    local appraiserPos = (appraiser.PrimaryPart or appraiser:FindFirstChildWhichIsA("BasePart") or appraiser:GetPivot()).Position
+    local userOffsetAngle = ((LocalPlayer.UserId or 0) % 8) * (math.pi / 4)
+    local standPos = appraiserPos + Vector3.new(math.cos(userOffsetAngle) * 4.2, 0, math.sin(userOffsetAngle) * 4.2)
+    root.CFrame = CFrame.new(standPos, appraiserPos)
     root.Velocity = Vector3.zero
-    task.wait(0.5)
+    root.RotVelocity = Vector3.zero
+    task.wait(0.4)
+    
+    -- ฟังก์ชันเปิด Session พูดคุยกับ Appraiser (เปิดแค่ครั้งแรกต่อเม็ด ไม่ต้องกด Prompt ซ้ำทุกรอบ)
+    local function ensureDialogSession()
+        local char = LocalPlayer.Character
+        if not char then return false end
+        if char:FindFirstChild("dialoglink") then return true end
+        
+        ProximityPromptService.Enabled = true
+        local dialogStarted = false
+        local conn = dialogStartEvent.OnClientEvent:Connect(function() dialogStarted = true end)
+        
+        pcall(function()
+            prompt:InputHoldBegin()
+            task.wait(0.02)
+            prompt:InputHoldEnd()
+            if fireproximityprompt then fireproximityprompt(prompt, 0) end
+        end)
+        
+        local t0 = tick()
+        while tick() - t0 < 1.0 do
+            if dialogStarted or (char and char:FindFirstChild("dialoglink")) then break end
+            task.wait(0.03)
+        end
+        conn:Disconnect()
+        
+        if char:FindFirstChild("dialoglink") or dialogStarted then
+            task.wait(0.05)
+            pcall(function() dialogInteract:InvokeServer(1, 1) end) -- Node 1: "Can you appraise this fish?"
+            task.wait(0.08)
+            pcall(function() dialogInteract:InvokeServer(3, 1) end) -- Node 3: "Yes!"
+            task.wait(0.08)
+            return true
+        end
+        return false
+    end
     
     while isPearlRunning do
         local pearls = updatePearlUI()
@@ -2003,7 +2051,7 @@ local function startPearlLoop()
         
         local currentTarget = pending[1]
         equipTargetPearl(currentTarget.id)
-        task.wait(0.3)
+        task.wait(0.25)
         
         -- หา ID จริงของเม็ดที่กำลังถืออยู่ในมือ
         local _, activeHeldId = getHeldPearlInfo()
@@ -2015,7 +2063,7 @@ local function startPearlLoop()
             emergencyStopPearlProtection()
             addLog(string.format("✨ เม็ดนี้ติด Shrouded อยู่แล้ว! (ข้าม)", tostring(activePearlId)), Color3.fromRGB(52, 211, 153))
             updatePearlUI()
-            task.wait(0.5)
+            task.wait(0.4)
             continue
         end
         
@@ -2025,12 +2073,19 @@ local function startPearlLoop()
         LblPearlProgress.Text = string.format("🎯 กำลังรีเม็ดที่เหลือ (เหลือ %d เม็ด)", #pending)
         addLog(string.format("🔮 เริ่มรีไข่มุก ID: ...%s", tostring(activePearlId):sub(-6)), Color3.fromRGB(192, 132, 252))
         
-        while isPearlRunning and attempts < 1500 do
+        -- เปิด Dialog Session กับ Appraiser สำหรับเม็ดนี้
+        local sessionReady = ensureDialogSession()
+        if not sessionReady then
+            addLog("⚠️ กำลังรอคิวเปิดบทสนทนากับ Appraiser...", Color3.fromRGB(251, 191, 36))
+            task.wait(0.3)
+        end
+        
+        while isPearlRunning and attempts < 2000 do
             -- ตรวจสอบ ID ล่าสุดในมือเสมอ (เผื่อเซิร์ฟเวอร์เปลี่ยน ID หลังรี)
             local _, curHeldId = getHeldPearlInfo()
             if curHeldId then activePearlId = curHeldId end
             
-            -- 🛡️ ตรวจสอบก่อนเริ่มรอบใหม่
+            -- 🛡️ ตรวจสอบความปลอดภัยสูงสุดก่อนเริ่มทุกรอบ
             local isShrouded, curMut = checkPearlHeldStatus(activePearlId)
             local currentShroudedCount = countShroudedInInventory()
             LblPearlCurMut.Text = string.format("🔮 มิวเทชันล่าสุด: %s (รอบที่ %d)", tostring(curMut), attempts)
@@ -2043,74 +2098,72 @@ local function startPearlLoop()
                 break
             end
             
+            -- ตรวจสอบว่ายังมี Dialog Session อยู่หรือไม่ (หากหลุดให้ต่อใหม่)
             local char = LocalPlayer.Character
-            if char and char:FindFirstChild("dialoglink") then char.dialoglink:Destroy() end
-            ProximityPromptService.Enabled = true
-            
-            if (root.Position - Vector3.new(448.2, 150.54, 206.45)).Magnitude > 6 then
-                root.CFrame = CFrame.new(448.2, 150.54, 206.45)
-                root.Velocity = Vector3.zero
+            if not char or not char:FindFirstChild("dialoglink") then
+                local ok = ensureDialogSession()
+                if not ok then
+                    task.wait(0.2)
+                    continue
+                end
             end
             
-            local dialogStarted = false
-            local conn = dialogStartEvent.OnClientEvent:Connect(function() dialogStarted = true end)
-            prompt:InputHoldBegin()
-            task.wait(0.04)
-            prompt:InputHoldEnd()
-            if fireproximityprompt then fireproximityprompt(prompt, 0) end
+            attempts = attempts + 1
             
-            local t0 = tick()
-            while tick() - t0 < 1.2 do
-                if dialogStarted then break end
-                task.wait(0.04)
+            -- ⚡ ส่งคำสั่งรีซ้ำทันที (Node 7 Choice 1: "Can you appraise it again?")
+            -- วิธีนี้ไม่ต้องปิด-เปิดบทสนทนาใหม่ ไม่ต้องแย่ง ProximityPrompt กับไอดีอื่น
+            local s7, r7 = pcall(function()
+                return dialogInteract:InvokeServer(7, 1)
+            end)
+            
+            if not s7 or r7 == false then
+                -- หากเซิร์ฟเวอร์ปฏิเสธ ให้ตัด Session แล้วต่อใหม่รอบถัดไป
+                if char and char:FindFirstChild("dialoglink") then
+                    pcall(function() char.dialoglink:Destroy() end)
+                end
+                task.wait(0.15)
+                continue
             end
-            conn:Disconnect()
             
-            if dialogStarted then
-                attempts = attempts + 1
-                task.wait(0.08)
-                pcall(function() dialogInteract:InvokeServer(1, 1) end)
-                task.wait(0.12)
-                pcall(function() dialogInteract:InvokeServer(3, 1) end)
-                
-                -- 🛡️ ACTIVE POLLING FOR REPLICATION (เช็กผลลัพธ์ทันที รอแพ็กเก็ตอัปเดต ไม่รีต่อก่อนผลออก)
-                local gotShrouded = false
-                local pollStart = tick()
-                local pollMut = "None"
-                
-                while tick() - pollStart < 0.9 do
-                    local _, liveHeldId = getHeldPearlInfo()
-                    if liveHeldId then activePearlId = liveHeldId end
-                    local sCheck, sMut = checkPearlHeldStatus(activePearlId)
-                    pollMut = sMut
-                    if sCheck or countShroudedInInventory() > baselineShroudedCount then
-                        gotShrouded = true
-                        break
-                    end
-                    task.wait(0.06)
-                end
-                
-                -- บันทึก Log เมื่อครบทุก 10 รอบ หรือเมื่อมิวเทชันเปลี่ยนใหม่ (ไม่สแปมข้อความซ้ำรัวๆ)
-                local shouldLog = (attempts % 10 == 0) or (pollMut ~= "None" and pollMut ~= lastLoggedMut)
-                if shouldLog then
-                    lastLoggedMut = pollMut
-                    addLog(string.format("รอบที่ #%d -> %s", attempts, tostring(pollMut)), Color3.fromRGB(156, 163, 175))
-                end
-                
-                -- 🛡️ หากติด Shrouded ให้หยุดรอบและเก็บเข้ากระเป๋าทันทีในวินาทีนี้เลย!
-                if gotShrouded then
-                    emergencyStopPearlProtection()
-                    addLog(string.format("🎉 สำเร็จ! ได้รับ Shrouded เรียบร้อยแล้ว! (ใช้ไป %d รอบ)", attempts), Color3.fromRGB(52, 211, 153))
-                    notify("Shrouded Hub", "✅ ติด Shrouded แล้ว 1 เม็ด! (เก็บเข้ากระเป๋าทันที)", 4)
-                    updatePearlUI()
+            -- 🛡️ ACTIVE POLLING (รอผลลัพธ์มิวเทชันแบบกระชับ รวดเร็ว ไม่ถ่วงเวลา)
+            local gotShrouded = false
+            local pollStart = tick()
+            local pollMut = curMut
+            
+            while tick() - pollStart < 0.35 do
+                local _, liveHeldId = getHeldPearlInfo()
+                if liveHeldId then activePearlId = liveHeldId end
+                local sCheck, sMut = checkPearlHeldStatus(activePearlId)
+                pollMut = sMut
+                if sCheck or countShroudedInInventory() > baselineShroudedCount then
+                    gotShrouded = true
                     break
                 end
-            else
-                task.wait(0.2)
+                task.wait(0.04)
             end
-            task.wait(0.35)
+            
+            -- บันทึก Log ทุก 10 รอบ หรือเมื่อมิวเทชันเปลี่ยนใหม่
+            local shouldLog = (attempts % 10 == 0) or (pollMut ~= "None" and pollMut ~= lastLoggedMut)
+            if shouldLog then
+                lastLoggedMut = pollMut
+                addLog(string.format("รอบที่ #%d -> %s", attempts, tostring(pollMut)), Color3.fromRGB(156, 163, 175))
+            end
+            
+            -- 🛡️ หากติด Shrouded ให้หยุดรอบและเก็บเข้ากระเป๋าทันทีในวินาทีนี้!
+            if gotShrouded then
+                emergencyStopPearlProtection()
+                addLog(string.format("🎉 สำเร็จ! ได้รับ Shrouded เรียบร้อยแล้ว! (ใช้ไป %d รอบ)", attempts), Color3.fromRGB(52, 211, 153))
+                notify("Shrouded Hub", "✅ ติด Shrouded แล้ว 1 เม็ด! (เก็บเข้ากระเป๋าทันที)", 4)
+                updatePearlUI()
+                break
+            end
+            
+            task.wait(0.05)
         end
-        task.wait(0.6)
+        
+        -- จบเม็ดนี้ เคลียร์ dialoglink เตรียมใส่เม็ดถัดไป
+        emergencyStopPearlProtection()
+        task.wait(0.4)
     end
     
     isPearlRunning = false
@@ -2120,7 +2173,7 @@ local function startPearlLoop()
     LblPearlProgress.TextColor3 = Color3.fromRGB(156, 163, 175)
     
     if origPos then
-        task.wait(0.5)
+        task.wait(0.4)
         root.CFrame = origPos
         root.Velocity = Vector3.zero
         addLog("📍 วาร์ปกลับจุดฟาร์มเดิมเรียบร้อย", Color3.fromRGB(96, 165, 250))
