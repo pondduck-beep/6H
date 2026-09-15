@@ -7,11 +7,13 @@
     - จะไม่มีการวาร์ป ไม่มีการซื้อของ และไม่มีการรีบัฟใดๆ ทั้งสิ้นจนกว่าผู้ใช้จะกดปุ่มเปิดเอง
     - ⌨️ กดปุ่ม [ Z ] เพื่อเปิด / ปิด หน้าต่าง UI ได้ตลอดเวลา
     - 🔄 ปุ่ม Rejoin สำหรับเข้าเซิร์ฟเวอร์ใหม่อัตโนมัติ (บนแถบ Topbar)
+    - 🐟 Auto Fish Radar: เปิดเรดาร์มองปลา (Fish Radar) อัตโนมัติทันทีเมื่อรันสคริปต์
     - 🔮 Tab 1: รีไข่มุก Golden Sea Pearl -> Shrouded ครบทุกเม็ด
     - 🧙‍♂️ Tab 2: ออโต้ต่ออายุบัฟ Merlin (Lucky V / Lure IV / Insight IV) ระยะไกล
     - 🪱 Tab 3: ออโต้ซื้อเหยื่อเรื่อยๆ & ออโต้เปิดเหยื่อเรื่อยๆ & ซื้อกรงดักปู
     - 🌌 Tab 4: ออโต้ซื้อ Aurora Totem วาร์ปตรวจสอบ 46 พิกัดทั่วแมพ
     - ⚡ Tab 5: วาร์ปไปทำเบ็ดโอลิมปัส ชั้น 1 - 6 & ออโต้หมุนกระจก 5 จุด & ออโต้ส่งเควสดาบ
+    - 🏃 Tab 6: ปรับความเร็วเดิน (WalkSpeed 50) & แรงกระโดด (JumpPower 100)
     ===================================================================
 --]]
 repeat task.wait(1) until game:IsLoaded()
@@ -203,7 +205,7 @@ TopbarCorner.CornerRadius = UDim.new(0, 12)
 TopbarCorner.Parent = Topbar
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -155, 1, 0)
+Title.Size = UDim2.new(1, -245, 1, 0)
 Title.Position = UDim2.new(0, 16, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "🎣 Pond Hub [Z]"
@@ -446,7 +448,7 @@ SaveLogBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ===================================================================
--- 📑 TAB MANAGEMENT SYSTEM (5 TABS)
+-- 📑 TAB MANAGEMENT SYSTEM (6 TABS)
 -- ===================================================================
 local TabButtons = {}
 local TabFrames = {}
@@ -454,7 +456,7 @@ local TabFrames = {}
 local function createTab(tabId, tabName, icon, layoutOrder)
     local btn = Instance.new("TextButton")
     btn.Name = "TabBtn_" .. tabId
-    btn.Size = UDim2.new(0.192, -2, 1, 0)
+    btn.Size = UDim2.new(0.195, -2, 1, 0)
     btn.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
     btn.Text = icon .. " " .. tabName
     btn.TextColor3 = Color3.fromRGB(156, 163, 175)
@@ -2502,11 +2504,208 @@ StopOlympusQuestBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ===================================================================
+-- 🏃 AUTO MOVEMENT (วิ่งเร็ว 50 & กระโดดสูง 100 แบบล็อกนิ่ง ไม่กระตุก ไม่ช้าสลับเร็ว)
+-- ===================================================================
+local function startAutoMovement()
+    local RunService = game:GetService("RunService")
+    local TARGET_SPEED = 50
+    local TARGET_JUMP = 100
+
+    local currentConnWS, currentConnJP, currentConnSim
+
+    local function setupCharacter(char)
+        if not char then return end
+        local hum = char:WaitForChild("Humanoid", 10)
+        if not hum then return end
+
+        if currentConnWS then pcall(function() currentConnWS:Disconnect() end) end
+        if currentConnJP then pcall(function() currentConnJP:Disconnect() end) end
+        if currentConnSim then pcall(function() currentConnSim:Disconnect() end) end
+
+        -- 1. เชื่อมต่อระบบคำนวณความเร็วของตัวเกม Fisch (WalkSpeedController)
+        -- ทำให้ระบบเกมคำนวณความเร็วปกติออกมาเป็น 50 และกระโดด 100 ทันที โดยไม่รีเซ็ตกลับเป็น 16/50
+        char:SetAttribute("SpeedCoil", TARGET_SPEED - 16)
+        char:SetAttribute("FreezingWaterJump", TARGET_JUMP - 50)
+
+        local function enforce()
+            pcall(function()
+                if hum.WalkSpeed ~= TARGET_SPEED then
+                    hum.WalkSpeed = TARGET_SPEED
+                end
+                if hum.UseJumpPower then
+                    if hum.JumpPower ~= TARGET_JUMP then
+                        hum.JumpPower = TARGET_JUMP
+                    end
+                else
+                    if hum.JumpHeight ~= TARGET_JUMP then
+                        hum.JumpHeight = TARGET_JUMP
+                    end
+                end
+            end)
+        end
+
+        enforce()
+
+        -- 2. ดักจับเมื่อค่าใน Humanoid ถูกเขียนทับ
+        currentConnWS = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+            if hum.WalkSpeed ~= TARGET_SPEED then
+                hum.WalkSpeed = TARGET_SPEED
+            end
+        end)
+
+        currentConnJP = hum:GetPropertyChangedSignal("JumpPower"):Connect(function()
+            if hum.JumpPower ~= TARGET_JUMP then
+                hum.JumpPower = TARGET_JUMP
+            end
+        end)
+
+        -- 3. ล็อกค่าต่อเนื่องทุก Frame ก่อน Physics ทำงาน (PreSimulation)
+        currentConnSim = RunService.PreSimulation:Connect(function()
+            if not hum.Parent or not char.Parent then
+                if currentConnSim then currentConnSim:Disconnect() end
+                return
+            end
+            if hum.WalkSpeed ~= TARGET_SPEED then
+                hum.WalkSpeed = TARGET_SPEED
+            end
+            if hum.UseJumpPower then
+                if hum.JumpPower ~= TARGET_JUMP then
+                    hum.JumpPower = TARGET_JUMP
+                end
+            else
+                if hum.JumpHeight ~= TARGET_JUMP then
+                    hum.JumpHeight = TARGET_JUMP
+                end
+            end
+        end)
+    end
+
+    if LocalPlayer.Character then
+        task.spawn(function() setupCharacter(LocalPlayer.Character) end)
+    end
+
+    LocalPlayer.CharacterAdded:Connect(function(char)
+        task.wait(0.2)
+        setupCharacter(char)
+    end)
+
+    addLog("🏃‍♂️ ล็อกความเร็ววิ่ง 50 และกระโดดสูง 100 ถาวร (แก้ปัญหาวิ่งช้าสลับเร็วเรียบร้อย)", Color3.fromRGB(52, 211, 153))
+end
+-- ===================================================================
+local function startAutoFishRadar()
+    local CollectionService = game:GetService("CollectionService")
+    
+    local function ToTime(seconds)
+        local h = math.floor(seconds / 3600)
+        local m = os.date("%M", seconds)
+        local s = os.date("%S", seconds)
+        return (tonumber(h) or 0) >= 1 and string.format("%d:%s:%s", h, m, s) or string.format("%s:%s", m, s)
+    end
+
+    local function applyRadar(v)
+        pcall(function()
+            if v:IsA("BillboardGui") or v:IsA("SurfaceGui") then
+                local name = v.Name:lower()
+                if string.find(name, "radar") or CollectionService:HasTag(v, "radarTag") or CollectionService:HasTag(v, "radarTagWithTimer") then
+                    if v:FindFirstChild("abundanceName") and v.abundanceName.Text == "Ancient Depth Serpent" then
+                        v.Enabled = false
+                    else
+                        v.Enabled = true
+                    end
+                end
+            end
+        end)
+    end
+
+    -- กำหนด Attribute RadarEnabled ให้ตัวละคร
+    pcall(function()
+        LocalPlayer:SetAttribute("RadarEnabled", true)
+    end)
+
+    -- เปิดการแสดงผลเรดาร์ที่มีอยู่ในเซิร์ฟเวอร์ทันที
+    pcall(function()
+        for _, v in pairs(CollectionService:GetTagged("radarTag")) do
+            applyRadar(v)
+        end
+        for _, v in pairs(CollectionService:GetTagged("radarTagWithTimer")) do
+            applyRadar(v)
+        end
+    end)
+
+    -- เปิดเรดาร์ในทุกโซนตกปลา (workspace.zones.fishing)
+    pcall(function()
+        local zones = workspace:FindFirstChild("zones")
+        local fishing = zones and zones:FindFirstChild("fishing")
+        if fishing then
+            for _, p in ipairs(fishing:GetChildren()) do
+                for _, g in ipairs(p:GetChildren()) do
+                    if g:IsA("BillboardGui") or g:IsA("SurfaceGui") then
+                        applyRadar(g)
+                    end
+                end
+            end
+        end
+    end)
+
+    -- ดักจับเมื่อมี Tag เรดาร์ใหม่ถูกเพิ่มเข้ามา
+    pcall(function()
+        CollectionService:GetInstanceAddedSignal("radarTag"):Connect(function(v)
+            applyRadar(v)
+        end)
+        CollectionService:GetInstanceAddedSignal("radarTagWithTimer"):Connect(function(v)
+            applyRadar(v)
+        end)
+    end)
+
+    -- ลูปอัปเดตตัวจับเวลาสำหรับโซนแบบมีเวลา และคงสถานะเปิดเรดาร์ต่อเนื่อง
+    task.spawn(function()
+        while true do
+            pcall(function()
+                LocalPlayer:SetAttribute("RadarEnabled", true)
+                local serverTime = workspace:GetServerTimeNow()
+
+                for _, v in pairs(CollectionService:GetTagged("radarTagWithTimer")) do
+                    if v:IsA("BillboardGui") or v:IsA("SurfaceGui") then
+                        v.Enabled = true
+                        local parent = v.Parent
+                        if parent and v:FindFirstChild("abundanceName") then
+                            local textAttr = parent:GetAttribute("Text")
+                            local endClock = parent:GetAttribute("EndClock")
+                            if textAttr and endClock then
+                                local remaining = math.max(0, endClock - serverTime)
+                                if remaining <= 0 then
+                                    v.abundanceName.Text = "Disappearing Soon"
+                                else
+                                    v.abundanceName.Text = string.format(textAttr, ToTime(remaining))
+                                end
+                            end
+                        end
+                    end
+                end
+
+                for _, v in pairs(CollectionService:GetTagged("radarTag")) do
+                    if (v:IsA("BillboardGui") or v:IsA("SurfaceGui")) and not v.Enabled then
+                        if not (v:FindFirstChild("abundanceName") and v.abundanceName.Text == "Ancient Depth Serpent") then
+                            v.Enabled = true
+                        end
+                    end
+                end
+            end)
+            task.wait(2)
+        end
+    end)
+
+    addLog("🐟 เปิดใช้งานเรดาร์มองปลา (Fish Radar) อัตโนมัติเรียบร้อย", Color3.fromRGB(56, 189, 248))
+end
+
+-- ===================================================================
 -- 🔄 BACKGROUND MONITOR (ตรวจแสดงผล UI อย่างเดียว ไม่ซื้อ/ไม่วาร์ปเอง)
 -- ===================================================================
 task.spawn(function()
     updatePearlUI()
     checkMerlinBuffs()
+    startAutoFishRadar()
+    startAutoMovement()
     addLog("🔒 Pond Hub โหลดสำเร็จ! (ทุกฟังก์ชันอยู่ในโหมด Standby ปิดอยู่)", Color3.fromRGB(167, 139, 250))
     notify("Pond Hub", "โหลดสำเร็จ! กดปุ่ม [ Z ] เพื่อเปิด/ปิด UI", 4)
     
