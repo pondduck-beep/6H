@@ -193,6 +193,11 @@ _G.PondHub_isMeteorRunning = false
 local hubConnections = {}
 _G.PondHub_Cleanup = function()
     _G.PondHub_isMeteorRunning = false
+    pcall(function()
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if root then root.Anchored = false end
+    end)
     for _, conn in ipairs(hubConnections) do
         pcall(function() conn:Disconnect() end)
     end
@@ -1711,6 +1716,7 @@ do
     local totalSpamCount = 0
     local totalMeteorCollected = 0
     local noClipConn = nil
+    local ignoredPrompts = {}
 
     -- Header แยกหมวดหมู่ Meteor Totem
     local MeteorHeader = Instance.new("Frame")
@@ -1784,19 +1790,19 @@ do
     LblMeteorDesc.Size = UDim2.new(1, -24, 0, 22)
     LblMeteorDesc.Position = UDim2.new(0, 12, 0, 84)
     LblMeteorDesc.BackgroundTransparency = 1
-    LblMeteorDesc.Text = "⚡ สแปมเปิด Meteor Totem รัวๆ + ซื้ออัตโนมัติทีละ 10 อันเมื่อหมด + เก็บแร่ 100%"
+    LblMeteorDesc.Text = "⚡ เปิด Meteor Totem อัตโนมัติ (จังหวะนุ่มนวล) + ซื้อทีละ 10 อันเมื่อหมด + เก็บแร่ 100%"
     LblMeteorDesc.TextColor3 = Color3.fromRGB(156, 163, 175)
     LblMeteorDesc.TextSize = 11
     LblMeteorDesc.Font = Enum.Font.Gotham
     LblMeteorDesc.TextXAlignment = Enum.TextXAlignment.Left
     LblMeteorDesc.Parent = MeteorCard
 
-    -- ปุ่ม Toggle Auto Spam Meteor Totem (Default: OFF)
+    -- ปุ่ม Toggle Auto Meteor Totem (Default: OFF)
     local ToggleMeteorBtn = Instance.new("TextButton")
     ToggleMeteorBtn.Size = UDim2.new(1, 0, 0, 42)
     ToggleMeteorBtn.Position = UDim2.new(0, 0, 0, 388)
     ToggleMeteorBtn.BackgroundColor3 = Color3.fromRGB(55, 65, 81)
-    ToggleMeteorBtn.Text = "⚪ [OFF] Auto Spam Meteor Totem (สแปมเปิดรัวๆ + ออโต้ซื้อ 10 อันเมื่อหมด)"
+    ToggleMeteorBtn.Text = "⚪ [OFF] Auto Meteor Totem (เปิดอัตโนมัติ + ออโต้ซื้อ 10 อันเมื่อหมด)"
     ToggleMeteorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     ToggleMeteorBtn.TextSize = 13
     ToggleMeteorBtn.Font = Enum.Font.GothamBold
@@ -1821,35 +1827,25 @@ do
     WMCorner.CornerRadius = UDim.new(0, 6)
     WMCorner.Parent = WarpMeteorBtn
 
-    -- 🛡️ ฟังก์ชัน NoClip ป้องกันตัวละครติดหินขณะวาร์ปเก็บแร่
+    -- 🛡️ ฟังก์ชัน NoClip (ปิดการทำงานตามคำสั่งผู้ใช้: ไม่เปิด NoClip)
     local function setMeteorNoClip(enable)
-        if enable then
-            if not noClipConn then
-                noClipConn = RunService.Stepped:Connect(function()
-                    if not _G.PondHub_isMeteorRunning then
-                        if noClipConn then
-                            noClipConn:Disconnect()
-                            noClipConn = nil
-                        end
-                        return
-                    end
-                    local char = LocalPlayer.Character
-                    if char then
-                        for _, part in ipairs(char:GetDescendants()) do
-                            if part:IsA("BasePart") and part.CanCollide then
-                                part.CanCollide = false
-                            end
-                        end
-                    end
-                end)
-                table.insert(hubConnections, noClipConn)
-            end
-        else
-            if noClipConn then
-                noClipConn:Disconnect()
-                noClipConn = nil
-            end
+        if noClipConn then
+            noClipConn:Disconnect()
+            noClipConn = nil
         end
+    end
+
+    -- 🔒 ฟังก์ชันล็อกขา/ปลดล็อกขา (Anchored HumanoidRootPart) ขณะยืนรอเปิด Totem
+    local function setLegsLocked(locked)
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.Anchored = locked and true or false
+                end
+            end
+        end)
     end
 
     -- 🎒 ฟังก์ชันตรวจสอบจำนวน Meteor Totem คงเหลือทั้งหมด (รองรับระบบ Stack ใน Replicator)
@@ -1978,18 +1974,26 @@ do
         return nil
     end
 
-    -- 🔍 ฟังก์ชันค้นหา ProximityPrompt ของหลุมอุกกาบาต
+    -- 🔍 ฟังก์ชันค้นหา ProximityPrompt ของหลุมอุกกาบาต (ตรวจสอบเฉพาะ Prompt ที่เปิดอยู่จริง)
     local function getCraterPrompts()
         local prompts = {}
+
+        -- ล้างรายการ ignoredPrompts ที่เกิน 15 วินาที
+        local now = tick()
+        for p, t in pairs(ignoredPrompts) do
+            if now - t > 15 then
+                ignoredPrompts[p] = nil
+            end
+        end
 
         for _, obj in ipairs(workspace:GetChildren()) do
             if obj.Name == "MeteorCrater" or obj.Name:lower():find("crater") then
                 for _, descendant in ipairs(obj:GetDescendants()) do
-                    if descendant:IsA("ProximityPrompt") then
+                    if descendant:IsA("ProximityPrompt") and descendant.Enabled and not ignoredPrompts[descendant] then
                         local parentPart = descendant.Parent
                         local pos = parentPart:IsA("BasePart") and parentPart.Position or (parentPart:IsA("Model") and parentPart:GetPivot().Position)
                         if pos then
-                            table.insert(prompts, { prompt = descendant, pos = pos, item = parentPart })
+                            table.insert(prompts, { prompt = descendant, pos = pos, item = parentPart, name = parentPart.Name })
                         end
                     end
                 end
@@ -2002,17 +2006,19 @@ do
             for _, item in ipairs(meteorFolder:GetChildren()) do
                 local prompt = nil
                 for _, d in ipairs(item:GetDescendants()) do
-                    if d:IsA("ProximityPrompt") then
+                    if d:IsA("ProximityPrompt") and d.Enabled and not ignoredPrompts[d] then
                         prompt = d
                         break
                     end
                 end
-                if not prompt and item:IsA("ProximityPrompt") then
+                if not prompt and item:IsA("ProximityPrompt") and item.Enabled and not ignoredPrompts[item] then
                     prompt = item
                 end
-                local pos = item:IsA("BasePart") and item.Position or (item:IsA("Model") and item:GetPivot().Position)
-                if pos then
-                    table.insert(prompts, { prompt = prompt, pos = pos, item = item })
+                if prompt and prompt.Enabled then
+                    local pos = item:IsA("BasePart") and item.Position or (item:IsA("Model") and item:GetPivot().Position)
+                    if pos then
+                        table.insert(prompts, { prompt = prompt, pos = pos, item = item, name = item.Name })
+                    end
                 end
             end
         end
@@ -2020,23 +2026,37 @@ do
         return prompts
     end
 
-    -- 💎 ฟังก์ชันวาร์ปเก็บของในหลุมอุกกาบาต
+    -- 💎 ฟังก์ชันวาร์ปเก็บของในหลุมอุกกาบาต (เช็กและรอจนเก็บได้จริงก่อนขยับไปจุดถัดไป)
     local function collectCraterItems()
-        local prompts = getCraterPrompts()
-        if #prompts == 0 then return 0 end
+        local totalCollectedInPass = 0
+        local passes = 0
 
-        addLog(string.format("🎯 [Meteor] พบแร่ในหลุม %d ชิ้น! กำลังวาร์ปเก็บ...", #prompts), Color3.fromRGB(251, 191, 36))
-        local collected = 0
+        while passes < 3 and _G.PondHub_isMeteorRunning do
+            passes = passes + 1
+            local prompts = getCraterPrompts()
+            if #prompts == 0 then break end
 
-        for idx, pData in ipairs(prompts) do
-            if not _G.PondHub_isMeteorRunning then break end
-            local root = getRoot()
-            if not root then break end
+            addLog(string.format("🎯 [Meteor] พบแร่ในหลุม %d ชิ้น! กำลังวาร์ปเก็บ...", #prompts), Color3.fromRGB(251, 191, 36))
 
-            teleportPlayer(CFrame.new(pData.pos + Vector3.new(0, 2, 0)))
-            task.wait(0.12)
+            for idx, pData in ipairs(prompts) do
+                if not _G.PondHub_isMeteorRunning then break end
+                local root = getRoot()
+                if not root then break end
 
-            if pData.prompt then
+                -- ข้ามหากไอเทมถูกเก็บไปแล้ว
+                if not pData.item or pData.item.Parent == nil or not pData.prompt or not pData.prompt.Enabled then
+                    continue
+                end
+
+                LblMeteorStatus.Text = string.format("💎 กำลังเก็บ: %s [%d/%d]", tostring(pData.name or "แร่"), idx, #prompts)
+                LblMeteorStatus.TextColor3 = Color3.fromRGB(251, 191, 36)
+                LblMeteorStep.Text = string.format("💎 วาร์ปประชิด %s และรอให้ระบบเก็บสำเร็จ...", tostring(pData.name or "แร่"))
+
+                -- วาร์ปประชิดตัวไอเทม
+                teleportPlayer(CFrame.new(pData.pos + Vector3.new(0, 1.2, 0), pData.pos))
+                task.wait(0.25) -- รอ Server Sync ตำแหน่งตัวละคร
+
+                -- ยิงคำสั่งเก็บ ProximityPrompt
                 pcall(function()
                     pData.prompt.Enabled = true
                     pData.prompt.RequiresLineOfSight = false
@@ -2050,22 +2070,62 @@ do
                         pData.prompt:InputHoldEnd()
                     end
                 end)
-                collected = collected + 1
-                addLog(string.format("✨ [Meteor] เก็บแร่ชิ้นที่ [%d/%d] เรียบร้อย!", idx, #prompts), Color3.fromRGB(52, 211, 153))
+
+                -- 🔍 เช็กว่าเก็บได้จริงก่อน (รอจนกว่าไอเทมจะหายไป สูงสุด 2.5 วินาที)
+                local isCollected = false
+                local waitStart = tick()
+                while (tick() - waitStart < 2.5) and _G.PondHub_isMeteorRunning do
+                    if not pData.item or pData.item.Parent == nil or not pData.prompt or pData.prompt.Parent == nil or not pData.prompt:IsDescendantOf(workspace) or not pData.prompt.Enabled then
+                        isCollected = true
+                        break
+                    end
+
+                    -- หากผ่านไป 0.5 วินาทียังไม่หาย ให้กดย้ำซ้ำ
+                    if (tick() - waitStart) >= 0.5 and ((tick() - waitStart) % 0.4 < 0.1) then
+                        pcall(function()
+                            if fireproximityprompt then
+                                fireproximityprompt(pData.prompt, 0)
+                            else
+                                pData.prompt:InputHoldBegin()
+                                task.wait(0.05)
+                                pData.prompt:InputHoldEnd()
+                            end
+                        end)
+                    end
+                    task.wait(0.1)
+                end
+
+                if isCollected then
+                    totalCollectedInPass = totalCollectedInPass + 1
+                    totalMeteorCollected = totalMeteorCollected + 1
+                    local rem = getMeteorTotemCount()
+                    LblMeteorStats.Text = string.format("💎 เก็บแร่: %d ชิ้น | ⚡ สแปม: %d ครั้ง | 🎒 คงเหลือ: %d อัน", totalMeteorCollected, totalSpamCount, rem)
+                    addLog(string.format("✨ [Meteor] เก็บ %s สำเร็จเรียบร้อย!", tostring(pData.name or "แร่")), Color3.fromRGB(52, 211, 153))
+                else
+                    ignoredPrompts[pData.prompt] = tick()
+                    addLog(string.format("⚠️ [Meteor] ข้าม %s (หมดเวลาเก็บหรือไม่สามารถเก็บได้)", tostring(pData.name or "แร่")), Color3.fromRGB(251, 191, 36))
+                end
+
+                task.wait(0.1)
             end
-            task.wait(0.08)
         end
 
-        return collected
+        -- 🔒 ทันทีหลังจากเก็บแร่เสร็จ ให้วาร์ปกลับมาล็อกที่ 5719.65, 194.86, 615.95 เลย
+        if _G.PondHub_isMeteorRunning and totalCollectedInPass > 0 then
+            teleportPlayer(STAND_CFRAME)
+            task.wait(0.1)
+            setLegsLocked(true)
+        end
+
+        return totalCollectedInPass
     end
 
-    -- 🔄 ลูปการทำงานหลัก: สแปมเปิด Meteor Totem รัวๆ ต่อเนื่อง + ตรวจจับเก็บแร่ + ซื้อเพิ่มอัตโนมัติ
+    -- 🔄 ลูปการทำงานหลัก: เปิด Meteor Totem จังหวะปกติ + ตรวจจับเก็บแร่ + ซื้อเพิ่มอัตโนมัติ
     local function startMeteorLoop()
         task.spawn(function()
             local loopSuccess, loopErr = pcall(function()
-                setMeteorNoClip(true)
-                addLog("🌟 [Meteor] เริ่มต้นระบบ Auto Spam Meteor Totem รัวๆ ต่อเนื่อง!", Color3.fromRGB(251, 146, 60))
-                notify("Meteor Totem", "เริ่มต้นระบบสแปมเปิด Meteor Totem รัวๆ ต่อเนื่อง!", 3)
+                addLog("🌟 [Meteor] เริ่มต้นระบบ Auto Meteor Totem (จังหวะปกติ + ซื้อเมื่อหมด)", Color3.fromRGB(251, 146, 60))
+                notify("Meteor Totem", "เริ่มต้นระบบ Auto Meteor Totem!", 3)
 
                 local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
                 local root = char:WaitForChild("HumanoidRootPart", 5)
@@ -2077,8 +2137,14 @@ do
                 end
 
                 local lastCraterCheck = 0
+                local isLockedAfterCollect = false
 
                 while _G.PondHub_isMeteorRunning do
+                    -- หากเก็บแร่เสร็จแล้ว ให้ล็อกขาอยู่ที่ 5719.65, 194.86, 615.95 ต่อเนื่อง
+                    if isLockedAfterCollect then
+                        setLegsLocked(true)
+                    end
+
                     -- 1. หาและถือเฉพาะ Meteor Totem
                     local tool = getOrEquipMeteorTotem()
 
@@ -2094,31 +2160,22 @@ do
 
                     if tool and tool.Parent == (LocalPlayer.Character or char) then
                         local remaining = getMeteorTotemCount()
-                        LblMeteorStatus.Text = "🎯 สถานะ Meteor: กำลังสแปมเปิดรัวๆ..."
+                        LblMeteorStatus.Text = isLockedAfterCollect and "🎯 สถานะ Meteor: กำลังเปิดทำงาน (ล็อกขาอยู่ที่ 5719.65, 194.86, 615.95)..." or "🎯 สถานะ Meteor: กำลังเปิดทำงาน..."
                         LblMeteorStatus.TextColor3 = Color3.fromRGB(16, 185, 129)
 
-                        -- 2. สแปมกด Activate Meteor Totem รัวๆ!
+                        -- 2. กด Activate Meteor Totem (จังหวะนุ่มนวล ไม่สแปมเร็ว)
                         pcall(function()
                             tool:Activate()
                         end)
-                    task.wait(0.5)
-                        pcall(function()
-                            if VirtualInputManager then
-                                local cam = workspace.CurrentCamera
-                                local vp = cam and cam.ViewportSize or Vector2.new(800, 600)
-                                VirtualInputManager:SendMouseButtonEvent(vp.X * 0.85, vp.Y * 0.15, 0, true, game, 0)
-                                VirtualInputManager:SendMouseButtonEvent(vp.X * 0.85, vp.Y * 0.15, 0, false, game, 0)
-                            end
-                        end)
 
                         totalSpamCount = totalSpamCount + 1
-                        LblMeteorStep.Text = string.format("⚡ สแปมเปิด: Meteor Totem (คงเหลือ: ~%d อัน | สแปม %d ครั้ง)", remaining, totalSpamCount)
-                        LblMeteorStats.Text = string.format("💎 เก็บแร่: %d ชิ้น | ⚡ สแปม: %d ครั้ง | 🎒 คงเหลือ: %d อัน", totalMeteorCollected, totalSpamCount, remaining)
+                        LblMeteorStep.Text = string.format("⚡ กำลังเปิด: Meteor Totem (คงเหลือ: ~%d อัน | เปิดไป %d ครั้ง)", remaining, totalSpamCount)
+                        LblMeteorStats.Text = string.format("💎 เก็บแร่: %d ชิ้น | ⚡ เปิด: %d ครั้ง | 🎒 คงเหลือ: %d อัน", totalMeteorCollected, totalSpamCount, remaining)
                     else
                         LblMeteorStatus.Text = "⚠️ สถานะ Meteor: ไม่มี Meteor Totem ในกระเป๋า (หรือเงินไม่พอ)"
                         LblMeteorStatus.TextColor3 = Color3.fromRGB(239, 68, 68)
                         LblMeteorStep.Text = "⚠️ ไม่พบ Meteor Totem ในกระเป๋า (กำลังรอเติม/ซื้อ)..."
-                        task.wait(0.8)
+                        task.wait(1.0)
                     end
 
                     if not _G.PondHub_isMeteorRunning then break end
@@ -2128,24 +2185,29 @@ do
                         lastCraterCheck = tick()
                         local prompts = getCraterPrompts()
                         if #prompts > 0 then
-                            LblMeteorStep.Text = string.format("🎯 พบหลุมอุกกาบาต %d ชิ้น! กำลังวาร์ปเก็บ...", #prompts)
-                            task.wait(0.2)
-                            local count = collectCraterItems()
-                            if count > 0 then
-                                totalMeteorCollected = totalMeteorCollected + count
-                                local rem = getMeteorTotemCount()
-                                LblMeteorStats.Text = string.format("💎 เก็บแร่: %d ชิ้น | ⚡ สแปม: %d ครั้ง | 🎒 คงเหลือ: %d อัน", totalMeteorCollected, totalSpamCount, rem)
-                            end
+                            LblMeteorStep.Text = string.format("🎯 พบแร่อุกกาบาต %d ชิ้น! ปลดล็อกขาและวาร์ปไปเก็บ...", #prompts)
+                            -- 🔓 ปลดล็อกขาก่อนเริ่มวาร์ปไปเก็บแร่
+                            isLockedAfterCollect = false
+                            setLegsLocked(false)
+                            task.wait(0.15)
 
-                            -- วาร์ปกลับจุดเดิมเพื่อสแปมต่อทันที
+                            -- วาร์ปเก็บแร่ทุกชิ้น พร้อมรอตรวจสอบให้แน่ใจว่าเก็บสำเร็จ 100%
+                            collectCraterItems()
+
+                            -- 🔒 หลังจากเก็บเสร็จแล้ว ให้มาล็อกอยู่ที่ 5719.65, 194.86, 615.95 เลย!
                             if _G.PondHub_isMeteorRunning then
                                 teleportPlayer(STAND_CFRAME)
+                                task.wait(0.1)
+                                setLegsLocked(true)
+                                isLockedAfterCollect = true
+                                LblMeteorStep.Text = "🔒 เก็บแร่เสร็จสิ้น! ล็อกขาอยู่ที่ 5719.65, 194.86, 615.95 เรียบร้อย"
+                                addLog("🔒 [Meteor] เก็บแร่เสร็จแล้ว วาร์ปกลับมาล็อกที่ 5719.65, 194.86, 615.95 เรียบร้อย!", Color3.fromRGB(52, 211, 153))
                                 task.wait(0.2)
                             end
                         end
                     end
 
-                    task.wait(0.12)
+                    task.wait(1.2)
                 end
             end)
 
@@ -2156,12 +2218,13 @@ do
 
             _G.PondHub_isMeteorRunning = false
             setMeteorNoClip(false)
+            setLegsLocked(false) -- 🔓 ปลดล็อกขาทันทีเมื่อหยุดระบบ
             ToggleMeteorBtn.BackgroundColor3 = Color3.fromRGB(55, 65, 81)
-            ToggleMeteorBtn.Text = "⚪ [OFF] Auto Spam Meteor Totem (สแปมเปิดรัวๆ + ออโต้ซื้อ 10 อันเมื่อหมด)"
+            ToggleMeteorBtn.Text = "⚪ [OFF] Auto Meteor Totem (เปิดอัตโนมัติ + ออโต้ซื้อ 10 อันเมื่อหมด)"
             LblMeteorStatus.Text = "🎯 สถานะ Meteor: ปิดอยู่ (Standby)"
             LblMeteorStatus.TextColor3 = Color3.fromRGB(156, 163, 175)
             LblMeteorStep.Text = "📍 จุดเปิด Meteor: 5719.65, 194.86, 615.95"
-            addLog(string.format("⏹ [Meteor] หยุดระบบ Auto Spam Meteor Totem (สแปมไป %d ครั้ง | เก็บแร่ได้ %d ชิ้น)", totalSpamCount, totalMeteorCollected), Color3.fromRGB(251, 146, 60))
+            addLog(string.format("⏹ [Meteor] หยุดระบบ Auto Meteor Totem (เปิดไป %d ครั้ง | เก็บแร่ได้ %d ชิ้น)", totalSpamCount, totalMeteorCollected), Color3.fromRGB(251, 146, 60))
         end)
     end
 
@@ -2169,9 +2232,11 @@ do
     ToggleMeteorBtn.MouseButton1Click:Connect(function()
         _G.PondHub_isMeteorRunning = not _G.PondHub_isMeteorRunning
         ToggleMeteorBtn.BackgroundColor3 = _G.PondHub_isMeteorRunning and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(55, 65, 81)
-        ToggleMeteorBtn.Text = _G.PondHub_isMeteorRunning and "🟢 [ON] Auto Spam Meteor Totem กำลังทำงาน... (คลิกเพื่อหยุด)" or "⚪ [OFF] Auto Spam Meteor Totem (สแปมเปิดรัวๆ + ออโต้ซื้อ 10 อันเมื่อหมด)"
+        ToggleMeteorBtn.Text = _G.PondHub_isMeteorRunning and "🟢 [ON] Auto Meteor Totem กำลังทำงาน... (คลิกเพื่อหยุด)" or "⚪ [OFF] Auto Meteor Totem (เปิดอัตโนมัติ + ออโต้ซื้อ 10 อันเมื่อหมด)"
         if _G.PondHub_isMeteorRunning then
             startMeteorLoop()
+        else
+            setLegsLocked(false)
         end
     end)
 
