@@ -5,15 +5,16 @@
     🔒 ความปลอดภัย & ฟังก์ชันครบวงจร:
     - ทุกฟังก์ชันจะ "ปิดใช้งาน (OFF / Standby)" เป็นค่าเริ่มต้นเสมอเมื่อรันสคริปต์!
     - จะไม่มีการวาร์ป ไม่มีการซื้อของ และไม่มีการรีบัฟใดๆ ทั้งสิ้นจนกว่าผู้ใช้จะกดปุ่มเปิดเอง
-    - ⌨️ กดปุ่ม [ Z ] เพื่อเปิด / ปิด หน้าต่าง UI ได้ตลอดเวลา
+    - ⌨️ กดปุ่ม [ Z ] หรือ [ RightShift ] เพื่อเปิด / ปิด หน้าต่าง UI ได้ตลอดเวลา
     - 🔄 ปุ่ม Rejoin สำหรับเข้าเซิร์ฟเวอร์ใหม่อัตโนมัติ (บนแถบ Topbar)
     - 🐟 Auto Fish Radar: เปิดเรดาร์มองปลา (Fish Radar) อัตโนมัติทันทีเมื่อรันสคริปต์
-    - 🔮 Tab 1: รีไข่มุก Golden Sea Pearl -> Shrouded ครบทุกเม็ด
-    - 🧙‍♂️ Tab 2: ออโต้ต่ออายุบัฟ Merlin (Lucky V / Lure IV / Insight IV) ระยะไกล
-    - 🪱 Tab 3: ออโต้ซื้อเหยื่อเรื่อยๆ & ออโต้เปิดเหยื่อเรื่อยๆ & ซื้อกรงดักปู
-    - 🌌 Tab 4: ออโต้ซื้อ Aurora Totem วาร์ปตรวจสอบ 46 พิกัดทั่วแมพ
-    - ⚡ Tab 5: วาร์ปไปทำเบ็ดโอลิมปัส ชั้น 1 - 6 & ออโต้หมุนกระจก 5 จุด & ออโต้ส่งเควสดาบ
-    - 🏃 Tab 6: ปรับความเร็วเดิน (WalkSpeed 50) & แรงกระโดด (JumpPower 100)
+    - 🎣 Tab 1: ออโต้ตกปลา (Auto Fishing V6) เหวี่ยง/ทุ่น/จุดขาว/ดึงปลาทันที [Q: Cast, F: Freeze]
+    - 🔮 Tab 2: รีไข่มุก Golden Sea Pearl -> Shrouded ครบทุกเม็ด (Fast Session Reroll)
+    - 🧙‍♂️ Tab 3: ออโต้ต่ออายุบัฟ Merlin (Lucky V / Lure IV / Insight IV) ระยะไกล
+    - 🪱 Tab 4: ออโต้ซื้อเหยื่อเรื่อยๆ & ออโต้เปิดเหยื่อเรื่อยๆ & ซื้อกรงดักปู
+    - 🌌 Tab 5: ออโต้ซื้อ Aurora Totem วาร์ปตรวจสอบ 46 พิกัดทั่วแมพ
+    - ⚡ Tab 6: วาร์ปไปทำเบ็ดโอลิมปัส ชั้น 1 - 6 & ออโต้หมุนกระจก 5 จุด & ออโต้ส่งเควสดาบ
+    - 🏃 Auto Movement: ล็อกความเร็ววิ่ง 50 และกระโดดสูง 100 ถาวร (ไม่แกว่ง ไม่กระตุก)
     ===================================================================
 --]]
 repeat task.wait(1) until game:IsLoaded()
@@ -48,8 +49,11 @@ local function teleportPlayer(targetCF)
     return true
 end
 
--- ลบ UI เก่าหากมีรันซ้ำ
+-- ลบ UI เก่า & ปิดการทำงาน Event Listeners จากรอบก่อนหน้าหากมีรันซ้ำ
 pcall(function()
+    if _G.PondHub_Cleanup then
+        pcall(_G.PondHub_Cleanup)
+    end
     local pg = LocalPlayer:FindFirstChild("PlayerGui")
     if pg then
         if pg:FindFirstChild("PondHub") then
@@ -60,6 +64,24 @@ pcall(function()
         end
     end
 end)
+
+local hubConnections = {}
+_G.PondHub_Cleanup = function()
+    for _, conn in ipairs(hubConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    table.clear(hubConnections)
+    pcall(function()
+        if getconnections then
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            if hum then
+                for _, c in ipairs(getconnections(hum:GetPropertyChangedSignal("WalkSpeed"))) do pcall(function() c:Disable() end) end
+                for _, c in ipairs(getconnections(hum:GetPropertyChangedSignal("JumpPower"))) do pcall(function() c:Disable() end) end
+            end
+        end
+    end)
+end
 
 local Net = require(ReplicatedStorage:WaitForChild("packages"):WaitForChild("Net"))
 local dialogInteract = Net:RemoteFunction("DialogInteract", -1)
@@ -260,7 +282,7 @@ local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(0, 6)
 CloseCorner.Parent = CloseBtn
 
--- Navigation Tab Bar (5 Tabs)
+-- Navigation Tab Bar (7 Tabs)
 local TabBar = Instance.new("Frame")
 TabBar.Name = "TabBar"
 TabBar.Size = UDim2.new(1, -24, 0, 42)
@@ -455,19 +477,124 @@ SaveLogBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ===================================================================
--- 📑 TAB MANAGEMENT SYSTEM (6 TABS)
+-- 💾 CONFIG SYSTEM (ระบบบันทึก / โหลดการตั้งค่าแยกตามไอดี)
+-- ===================================================================
+local HttpService = game:GetService("HttpService")
+local configFileName = string.format("pond_hub_config_%s.json", LocalPlayer.Name)
+
+local Config = {
+    AutoSave = true,
+    LastSaved = "ยังไม่ได้บันทึก",
+    Fishing = {
+        AutoEquipRod = false,
+        InstantCast = false,
+        InstantBobber = false,
+        AutoShake = true,
+        InstantAutoReel = true,
+        PositionFreeze = false,
+    },
+    Movement = {
+        Speed = 50,
+        Jump = 100,
+    },
+    FishRadar = true,
+    BaitShop = {
+        SelectedBait = "Tropical Bait Crate",
+    }
+}
+
+local setFishingToggleVisual = nil
+local updateConfigSummary = function() end
+
+local function saveConfig()
+    pcall(function()
+        if not writefile then return end
+        Config.LastSaved = os.date("%Y-%m-%d %X")
+        local json = HttpService:JSONEncode(Config)
+        writefile(configFileName, json)
+    end)
+end
+
+local function loadConfigFile()
+    local loaded = false
+    pcall(function()
+        if not isfile or not readfile then return end
+        if isfile(configFileName) then
+            local content = readfile(configFileName)
+            local data = HttpService:JSONDecode(content)
+            if data and type(data) == "table" then
+                if data.Fishing and type(data.Fishing) == "table" then
+                    for k, v in pairs(data.Fishing) do
+                        Config.Fishing[k] = v
+                    end
+                end
+                if data.AutoSave ~= nil then Config.AutoSave = data.AutoSave end
+                if data.LastSaved then Config.LastSaved = data.LastSaved end
+                if data.BaitShop and data.BaitShop.SelectedBait then
+                    Config.BaitShop.SelectedBait = data.BaitShop.SelectedBait
+                end
+                loaded = true
+            end
+        end
+    end)
+    return loaded
+end
+
+local function resetDefaultConfig()
+    Config.AutoSave = true
+    Config.Fishing = {
+        AutoEquipRod = false,
+        InstantCast = false,
+        InstantBobber = false,
+        AutoShake = true,
+        InstantAutoReel = true,
+        PositionFreeze = false,
+    }
+    Config.Movement = {
+        Speed = 50,
+        Jump = 100,
+    }
+    Config.FishRadar = true
+    Config.BaitShop = {
+        SelectedBait = "Tropical Bait Crate",
+    }
+end
+
+-- โหลดคอนฟิกเดิมที่เคยบันทึกไว้ก่อน
+loadConfigFile()
+
+-- ===================================================================
+-- 📑 TAB MANAGEMENT SYSTEM (7 TABS)
 -- ===================================================================
 local TabButtons = {}
 local TabFrames = {}
 
+local currentTabId = "Fishing"
+
+local function selectTab(tabId)
+    currentTabId = tabId
+    if TabButtons[tabId] then
+        for id, f in pairs(TabFrames) do f.Visible = (id == tabId) end
+        for id, b in pairs(TabButtons) do
+            if id == tabId then
+                b.BackgroundColor3 = Color3.fromRGB(138, 92, 246)
+                b.TextColor3 = Color3.fromRGB(255, 255, 255)
+            else
+                b.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+                b.TextColor3 = Color3.fromRGB(156, 163, 175)
+            end
+        end
+    end
+end
+
 local function createTab(tabId, tabName, icon, layoutOrder)
     local btn = Instance.new("TextButton")
     btn.Name = "TabBtn_" .. tabId
-    btn.Size = UDim2.new(0.195, -2, 1, 0)
+    btn.Size = UDim2.new(0.138, -2, 1, 0)
     btn.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
     btn.Text = icon .. " " .. tabName
     btn.TextColor3 = Color3.fromRGB(156, 163, 175)
-    btn.TextSize = 13
+    btn.TextSize = 11
     btn.Font = Enum.Font.GothamBold
     btn.LayoutOrder = layoutOrder
     btn.Parent = TabBar
@@ -493,42 +620,555 @@ local function createTab(tabId, tabName, icon, layoutOrder)
     TabFrames[tabId] = frame
     
     btn.MouseButton1Click:Connect(function()
-        for id, f in pairs(TabFrames) do f.Visible = (id == tabId) end
-        for id, b in pairs(TabButtons) do
-            if id == tabId then
-                b.BackgroundColor3 = Color3.fromRGB(138, 92, 246)
-                b.TextColor3 = Color3.fromRGB(255, 255, 255)
-            else
-                b.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
-                b.TextColor3 = Color3.fromRGB(156, 163, 175)
-            end
-        end
+        selectTab(tabId)
     end)
 end
 
-createTab("Pearl", "รีไข่มุก", "🔮", 1)
-createTab("Merlin", "Merlin", "🧙‍♂️", 2)
-createTab("BaitShop", "เหยื่อ&กรง", "🪱", 3)
-createTab("Aurora", "Aurora", "🌌", 4)
-createTab("Olympus", "โอลิมปัส", "⚡", 5)
+createTab("Fishing", "ตกปลา", "🎣", 1)
+createTab("Pearl", "รีไข่มุก", "🔮", 2)
+createTab("Merlin", "Merlin", "🧙‍♂️", 3)
+createTab("BaitShop", "เหยื่อ&กรง", "🪱", 4)
+createTab("Aurora", "Aurora", "🌌", 5)
+createTab("Olympus", "โอลิมปัส", "⚡", 6)
+createTab("Config", "เซฟคอนฟิก", "💾", 7)
 
-local function selectTab(tabId)
-    if TabButtons[tabId] then
-        for id, f in pairs(TabFrames) do f.Visible = (id == tabId) end
-        for id, b in pairs(TabButtons) do
-            if id == tabId then
-                b.BackgroundColor3 = Color3.fromRGB(138, 92, 246)
-                b.TextColor3 = Color3.fromRGB(255, 255, 255)
+-- ===================================================================
+-- 🎣 TAB 1: AUTO FISHING V6 (เหวี่ยง/ทุ่น/จุดขาว/ดึงปลาทันที [Q: Cast, F: Freeze])
+-- ===================================================================
+;(function()
+    local PageFishing = TabFrames["Fishing"]
+    if not PageFishing then return end
+
+    -- States การทำงานตกปลา (ซิงค์กับ Config)
+    local States = {
+        AutoEquipRod = Config.Fishing.AutoEquipRod or false,
+        InstantCast = Config.Fishing.InstantCast or false,
+        InstantBobber = Config.Fishing.InstantBobber or false,
+        AutoShake = (Config.Fishing.AutoShake ~= false),
+        InstantAutoReel = (Config.Fishing.InstantAutoReel ~= false),
+        PositionFreeze = Config.Fishing.PositionFreeze or false,
+    }
+
+    local frozenCFrame = nil
+    local isCasting = false
+
+    -- 🛡️ Anti-AFK ป้องกันการหลุด
+    pcall(function()
+        local VirtualUser = game:GetService("VirtualUser")
+        local idledConn = LocalPlayer.Idled:Connect(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
+        table.insert(hubConnections, idledConn)
+    end)
+
+    -- โหลด ReelController ของเกม
+    local ReelController = nil
+    pcall(function()
+        ReelController = require(ReplicatedStorage.client.legacyControllers.ReelController)
+    end)
+
+    -- UI Header Card
+    local HeaderCard = Instance.new("Frame")
+    HeaderCard.Name = "HeaderCard"
+    HeaderCard.Size = UDim2.new(1, 0, 0, 60)
+    HeaderCard.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+    HeaderCard.BorderSizePixel = 0
+    HeaderCard.Parent = PageFishing
+
+    local HCorner = Instance.new("UICorner")
+    HCorner.CornerRadius = UDim.new(0, 8)
+    HCorner.Parent = HeaderCard
+
+    local HStroke = Instance.new("UIStroke")
+    HStroke.Color = Color3.fromRGB(45, 50, 68)
+    HStroke.Thickness = 1
+    HStroke.Parent = HeaderCard
+
+    local LblTitle = Instance.new("TextLabel")
+    LblTitle.Size = UDim2.new(1, -20, 0, 24)
+    LblTitle.Position = UDim2.new(0, 12, 0, 6)
+    LblTitle.BackgroundTransparency = 1
+    LblTitle.Text = "🎣 Fisch Auto Fishing V6 (6 ฟังก์ชันครบวงจร)"
+    LblTitle.TextColor3 = Color3.fromRGB(52, 211, 153)
+    LblTitle.TextSize = 14
+    LblTitle.Font = Enum.Font.GothamBold
+    LblTitle.TextXAlignment = Enum.TextXAlignment.Left
+    LblTitle.Parent = HeaderCard
+
+    local LblSub = Instance.new("TextLabel")
+    LblSub.Size = UDim2.new(1, -20, 0, 20)
+    LblSub.Position = UDim2.new(0, 12, 0, 30)
+    LblSub.BackgroundTransparency = 1
+    LblSub.Text = "⌨️ คีย์ลัด: [ Q ] = สลับ Instant Cast | [ F ] = สลับ Position Freeze"
+    LblSub.TextColor3 = Color3.fromRGB(156, 163, 175)
+    LblSub.TextSize = 12
+    LblSub.Font = Enum.Font.Gotham
+    LblSub.TextXAlignment = Enum.TextXAlignment.Left
+    LblSub.Parent = HeaderCard
+
+    -- Toggles Container
+    local TogglesList = Instance.new("Frame")
+    TogglesList.Name = "TogglesList"
+    TogglesList.Size = UDim2.new(1, 0, 0, 0)
+    TogglesList.Position = UDim2.new(0, 0, 0, 68)
+    TogglesList.BackgroundTransparency = 1
+    TogglesList.AutomaticSize = Enum.AutomaticSize.Y
+    TogglesList.Parent = PageFishing
+
+    local TListLayout = Instance.new("UIListLayout")
+    TListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    TListLayout.Padding = UDim.new(0, 6)
+    TListLayout.Parent = TogglesList
+
+    local togglesUI = {}
+
+    local function createToggleRow(name, labelText, descText, defaultState, layoutOrder, onToggle)
+        local Row = Instance.new("Frame")
+        Row.Name = name .. "Row"
+        Row.Size = UDim2.new(1, 0, 0, 46)
+        Row.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+        Row.BorderSizePixel = 0
+        Row.LayoutOrder = layoutOrder
+        Row.Parent = TogglesList
+
+        local RCorner = Instance.new("UICorner")
+        RCorner.CornerRadius = UDim.new(0, 8)
+        RCorner.Parent = Row
+
+        local RStroke = Instance.new("UIStroke")
+        RStroke.Color = Color3.fromRGB(40, 44, 58)
+        RStroke.Thickness = 1
+        RStroke.Parent = Row
+
+        local TxtContainer = Instance.new("Frame")
+        TxtContainer.Size = UDim2.new(1, -80, 1, 0)
+        TxtContainer.Position = UDim2.new(0, 12, 0, 0)
+        TxtContainer.BackgroundTransparency = 1
+        TxtContainer.Parent = Row
+
+        local TitleLbl = Instance.new("TextLabel")
+        TitleLbl.Size = UDim2.new(1, 0, 0, 22)
+        TitleLbl.Position = UDim2.new(0, 0, 0, 4)
+        TitleLbl.BackgroundTransparency = 1
+        TitleLbl.Text = labelText
+        TitleLbl.TextColor3 = Color3.fromRGB(240, 240, 255)
+        TitleLbl.TextSize = 13
+        TitleLbl.Font = Enum.Font.GothamBold
+        TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+        TitleLbl.Parent = TxtContainer
+
+        local DescLbl = Instance.new("TextLabel")
+        DescLbl.Size = UDim2.new(1, 0, 0, 18)
+        DescLbl.Position = UDim2.new(0, 0, 0, 24)
+        DescLbl.BackgroundTransparency = 1
+        DescLbl.Text = descText
+        DescLbl.TextColor3 = Color3.fromRGB(156, 163, 175)
+        DescLbl.TextSize = 11
+        DescLbl.Font = Enum.Font.Gotham
+        DescLbl.TextXAlignment = Enum.TextXAlignment.Left
+        DescLbl.Parent = TxtContainer
+
+        local Switch = Instance.new("TextButton")
+        Switch.Name = "Switch"
+        Switch.Size = UDim2.new(0, 48, 0, 24)
+        Switch.Position = UDim2.new(1, -60, 0.5, -12)
+        Switch.BackgroundColor3 = defaultState and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(50, 54, 70)
+        Switch.Text = ""
+        Switch.Parent = Row
+
+        local SCorner = Instance.new("UICorner")
+        SCorner.CornerRadius = UDim.new(1, 0)
+        SCorner.Parent = Switch
+
+        local Knob = Instance.new("Frame")
+        Knob.Name = "Knob"
+        Knob.Size = UDim2.new(0, 18, 0, 18)
+        Knob.Position = defaultState and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
+        Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        Knob.BorderSizePixel = 0
+        Knob.Parent = Switch
+
+        local KCorner = Instance.new("UICorner")
+        KCorner.CornerRadius = UDim.new(1, 0)
+        KCorner.Parent = Knob
+
+        togglesUI[name] = {
+            Switch = Switch,
+            Knob = Knob,
+            Callback = onToggle
+        }
+
+        Switch.MouseButton1Click:Connect(function()
+            local newState = not States[name]
+            States[name] = newState
+            if newState then
+                Switch.BackgroundColor3 = Color3.fromRGB(16, 185, 129)
+                Knob:TweenPosition(UDim2.new(1, -21, 0.5, -9), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
             else
-                b.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
-                b.TextColor3 = Color3.fromRGB(156, 163, 175)
+                Switch.BackgroundColor3 = Color3.fromRGB(50, 54, 70)
+                Knob:TweenPosition(UDim2.new(0, 3, 0.5, -9), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+            end
+            if onToggle then onToggle(newState) end
+        end)
+    end
+
+    local function setToggleVisual(name, newState, triggerCallback)
+        States[name] = newState
+        local item = togglesUI[name]
+        if item then
+            if newState then
+                item.Switch.BackgroundColor3 = Color3.fromRGB(16, 185, 129)
+                item.Knob:TweenPosition(UDim2.new(1, -21, 0.5, -9), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+            else
+                item.Switch.BackgroundColor3 = Color3.fromRGB(50, 54, 70)
+                item.Knob:TweenPosition(UDim2.new(0, 3, 0.5, -9), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+            end
+            if triggerCallback and item.Callback then
+                item.Callback(newState)
             end
         end
     end
-end
+
+    setFishingToggleVisual = function(name, newState, triggerCallback)
+        setToggleVisual(name, newState, triggerCallback)
+        Config.Fishing[name] = newState
+        updateConfigSummary()
+    end
+
+    -- 🎒 Helper: ถือเบ็ดตกปลา
+    local function ensureEquippedRod()
+        local char = LocalPlayer.Character
+        if not char then return nil end
+
+        for _, item in ipairs(char:GetChildren()) do
+            if item:IsA("Tool") then
+                if item.Name:lower():find("rod") or item:FindFirstChild("events") or item:FindFirstChild("values") then
+                    return item
+                else
+                    return nil
+                end
+            end
+        end
+
+        if States.AutoEquipRod then
+            local backpack = LocalPlayer:FindFirstChild("Backpack")
+            if backpack then
+                for _, item in ipairs(backpack:GetChildren()) do
+                    if item:IsA("Tool") and (item.Name:lower():find("rod") or item:FindFirstChild("events") or item:FindFirstChild("values")) then
+                        local hum = char:FindFirstChildOfClass("Humanoid")
+                        if hum then
+                            hum:EquipTool(item)
+                            task.wait(0.3)
+                            return item
+                        end
+                    end
+                end
+            end
+        end
+        return nil
+    end
+
+    -- 🎯 Helper: หาผิวน้ำแท้ที่ใกล้ที่สุด
+    local function getNearestWaterPosition()
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if not root then return nil end
+
+        local rayParams = RaycastParams.new()
+        rayParams.IgnoreWater = false
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+        local ignore = { char }
+        if workspace:FindFirstChild("zones") then
+            table.insert(ignore, workspace.zones)
+        end
+        rayParams.FilterDescendantsInstances = ignore
+
+        for d = 0, 30, 3 do
+            local checkPos = root.Position + (root.CFrame.LookVector * d) + Vector3.new(0, 5, 0)
+            local ray = workspace:Raycast(checkPos, Vector3.new(0, -60, 0), rayParams)
+            if ray and ray.Material == Enum.Material.Water then
+                return ray.Position
+            end
+        end
+        return nil
+    end
+
+    local function snapBobberToWater(bobber)
+        -- 🔒 เช็กทันที: ถ้าไม่ได้เปิด InstantBobber (OFF) ให้หยุดทำงานทันที ไม่ดึงทุ่นลงน้ำเด็ดขาด
+        if not States.InstantBobber then return end
+        if not bobber or not bobber:IsA("BasePart") then return end
+
+        local char = LocalPlayer.Character
+        local rayParams = RaycastParams.new()
+        rayParams.IgnoreWater = false
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+        local ignore = { char, bobber }
+        if workspace:FindFirstChild("zones") then
+            table.insert(ignore, workspace.zones)
+        end
+        rayParams.FilterDescendantsInstances = ignore
+
+        local waterPos = getNearestWaterPosition()
+        if not waterPos then
+            local ray = workspace:Raycast(bobber.Position, Vector3.new(0, -200, 0), rayParams)
+            if ray and ray.Material == Enum.Material.Water then
+                waterPos = ray.Position
+            end
+        end
+
+        if not waterPos or not States.InstantBobber then return end
+
+        task.spawn(function()
+            for _ = 1, 5 do
+                if not States.InstantBobber then break end
+                if not bobber or not bobber.Parent then break end
+                bobber.CFrame = CFrame.new(waterPos)
+                bobber.AssemblyLinearVelocity = Vector3.zero
+                bobber.AssemblyAngularVelocity = Vector3.zero
+                task.wait(0.02)
+            end
+        end)
+    end
+
+    -- 🎒 สร้าง 6 ปุ่มสวิตช์ Toggles (ซิงค์บันทึกคอนฟิกอัตโนมัติ)
+    createToggleRow("AutoEquipRod", "🎒 Auto Equip Rod", "หยิบเบ็ดตกปลาจากกระเป๋ามาถืออัตโนมัติ", States.AutoEquipRod, 1, function(val)
+        Config.Fishing.AutoEquipRod = val
+        if Config.AutoSave then saveConfig() end
+        updateConfigSummary()
+        if val then ensureEquippedRod() end
+        addLog("🎣 Auto Equip Rod: " .. (val and "เปิดใช้งาน [ON]" or "ปิดใช้งาน [OFF]"), val and Color3.fromRGB(52, 211, 153) or Color3.fromRGB(156, 163, 175))
+    end)
+
+    createToggleRow("InstantCast", "⚡ Instant Cast [Q]", "เหวี่ยงเบ็ดทันที 100% (กดปุ่ม Q เพื่อสลับ)", States.InstantCast, 2, function(val)
+        Config.Fishing.InstantCast = val
+        if Config.AutoSave then saveConfig() end
+        updateConfigSummary()
+        addLog("⚡ Instant Cast [Q]: " .. (val and "เปิดใช้งาน [ON]" or "ปิดใช้งาน [OFF]"), val and Color3.fromRGB(52, 211, 153) or Color3.fromRGB(248, 113, 113))
+        notify("Fishing [Q]", val and "⚡ เปิด Instant Cast [Q]" or "⏹ ปิด Instant Cast [Q]", 2)
+    end)
+
+    createToggleRow("InstantBobber", "🎯 Instant Bobber", "วาร์ปทุ่นลงผิวน้ำที่ใกล้ที่สุดทันที ไม่ตกบนบก", States.InstantBobber, 3, function(val)
+        Config.Fishing.InstantBobber = val
+        if Config.AutoSave then saveConfig() end
+        updateConfigSummary()
+        addLog("🎯 Instant Bobber: " .. (val and "เปิดใช้งาน [ON]" or "ปิดใช้งาน [OFF]"), val and Color3.fromRGB(52, 211, 153) or Color3.fromRGB(156, 163, 175))
+    end)
+
+    createToggleRow("AutoShake", "🔘 Auto Shake", "กดจุดขาวอัตโนมัติความเร็วสูงพิเศษ (~0.04s)", States.AutoShake, 4, function(val)
+        Config.Fishing.AutoShake = val
+        if Config.AutoSave then saveConfig() end
+        updateConfigSummary()
+        addLog("🔘 Auto Shake: " .. (val and "เปิดใช้งาน [ON]" or "ปิดใช้งาน [OFF]"), val and Color3.fromRGB(52, 211, 153) or Color3.fromRGB(156, 163, 175))
+    end)
+
+    createToggleRow("InstantAutoReel", "🎣 Instant Auto Reel", "ดึงปลาสำเร็จทันที 100% ผ่าน ReelController", States.InstantAutoReel, 5, function(val)
+        Config.Fishing.InstantAutoReel = val
+        if Config.AutoSave then saveConfig() end
+        updateConfigSummary()
+        addLog("🎣 Instant Auto Reel: " .. (val and "เปิดใช้งาน [ON]" or "ปิดใช้งาน [OFF]"), val and Color3.fromRGB(52, 211, 153) or Color3.fromRGB(156, 163, 175))
+    end)
+
+    createToggleRow("PositionFreeze", "🔒 Position Freeze [F]", "ล็อกตำแหน่งตัวละคร ป้องกันตกน้ำ/มอนชน (กด F เพื่อสลับ)", States.PositionFreeze, 6, function(val)
+        Config.Fishing.PositionFreeze = val
+        if Config.AutoSave then saveConfig() end
+        updateConfigSummary()
+        if not val then
+            frozenCFrame = nil
+        else
+            local root = getRoot()
+            if root then frozenCFrame = root.CFrame end
+        end
+        addLog("🔒 Position Freeze [F]: " .. (val and "ล็อกตำแหน่ง [ON]" or "ปลดล็อก [OFF]"), val and Color3.fromRGB(52, 211, 153) or Color3.fromRGB(248, 113, 113))
+        notify("Position Freeze", val and "🔒 ล็อกตำแหน่งตัวละคร [F]" or "🔓 ปลดล็อกตำแหน่งแล้ว [F]", 2)
+    end)
+
+    -- 🎒 ลูป Auto Equip Rod
+    task.spawn(function()
+        while true do
+            task.wait(0.5)
+            if States.AutoEquipRod and States.InstantCast then
+                local isBusy = isPearlRunning or isMirrorRunning or isSwordRunning or isAuroraRunning
+                if not isBusy then
+                    ensureEquippedRod()
+                end
+            end
+        end
+    end)
+
+    -- 🎯 Instant Bobber Listener (ทำงานเฉพาะเมื่อเปิด InstantBobber เท่านั้น)
+    local bobberConn = workspace.DescendantAdded:Connect(function(child)
+        if not States.InstantBobber then return end
+        if child.Name == "bobber" and child:IsA("BasePart") then
+            local char = LocalPlayer.Character
+            task.wait(0.02)
+            if not States.InstantBobber then return end
+            if char and (child:IsDescendantOf(char) or (child.Parent and child.Parent:IsA("Tool") and child.Parent.Parent == char)) then
+                if not child:GetAttribute("Snapped") then
+                    child:SetAttribute("Snapped", true)
+                    snapBobberToWater(child)
+                end
+            end
+        end
+    end)
+    table.insert(hubConnections, bobberConn)
+
+    -- 🔘 Auto Shake ลูป
+    task.spawn(function()
+        while true do
+            task.wait(0.01)
+            if not States.AutoShake then continue end
+
+            local pg = LocalPlayer:FindFirstChild("PlayerGui")
+            local shakeUI = pg and pg:FindFirstChild("shakeui")
+            if shakeUI and shakeUI.Enabled then
+                local safezone = shakeUI:FindFirstChild("safezone")
+                if safezone then
+                    for _, btn in ipairs(safezone:GetChildren()) do
+                        if (btn:IsA("ImageButton") or btn:IsA("TextButton") or btn.Name == "default") and btn.Visible then
+                            if firesignal then
+                                pcall(function() firesignal(btn.Activated) end)
+                            elseif getconnections then
+                                for _, conn in ipairs(getconnections(btn.Activated)) do
+                                    pcall(function() conn:Fire() end)
+                                end
+                            end
+                            task.wait(0.04)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    -- 🎣 Instant Auto Reel
+    local RunService = game:GetService("RunService")
+    local reelConn = RunService.RenderStepped:Connect(function()
+        if not States.InstantAutoReel then return end
+
+        local pg = LocalPlayer:FindFirstChild("PlayerGui")
+        local reelUI = pg and pg:FindFirstChild("reel")
+        if reelUI and reelUI.Enabled then
+            if ReelController and ReelController.ActiveReel then
+                local active = ReelController.ActiveReel
+                active.barPosition = active.fishPosition
+                if active.AddProgress then
+                    active:AddProgress(100)
+                end
+            end
+
+            local bar = reelUI:FindFirstChild("bar")
+            if bar then
+                local fish = bar:FindFirstChild("fish")
+                local playerbar = bar:FindFirstChild("playerbar")
+                if fish and playerbar then
+                    playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
+                end
+                local progress = bar:FindFirstChild("progress")
+                local progBar = progress and progress:FindFirstChild("bar")
+                if progBar then
+                    progBar.Size = UDim2.new(1, 0, 1, 0)
+                end
+            end
+        end
+    end)
+    table.insert(hubConnections, reelConn)
+
+    -- ⚡ Instant Cast ลูป
+    task.spawn(function()
+        while true do
+            task.wait(0.2)
+            if not States.InstantCast or isCasting then continue end
+            local isBusy = isPearlRunning or isMirrorRunning or isSwordRunning or isAuroraRunning
+            if isBusy then continue end
+
+            local character = LocalPlayer.Character
+            if not character then continue end
+
+            local rod = ensureEquippedRod()
+            if not rod or rod.Parent ~= character then continue end
+
+            local values = rod:FindFirstChild("values")
+            local stateVal = values and values:FindFirstChild("state") and values.state.Value
+            local hasBobber = rod:FindFirstChild("bobber") ~= nil
+
+            local pg = LocalPlayer:FindFirstChild("PlayerGui")
+            local shakeUI = pg and pg:FindFirstChild("shakeui")
+            local reelUI = pg and pg:FindFirstChild("reel")
+            
+            local isFishing = (shakeUI and shakeUI.Enabled)
+                           or (reelUI and reelUI.Enabled)
+                           or (character:GetAttribute("ReelActive") == true)
+                           or hasBobber
+                           or (stateVal and stateVal > 3)
+
+            if isFishing then continue end
+
+            if not stateVal or stateVal <= 3 then
+                isCasting = true
+
+                pcall(function()
+                    local castRF = nil
+                    pcall(function() castRF = Net:RemoteFunction("FishingRod/Cast", -1) end)
+                    if not castRF then
+                        pcall(function() castRF = Net:RemoteFunction("FishingRod/Cast") end)
+                    end
+                    if castRF then
+                        castRF:InvokeServer(100, true)
+                    end
+                end)
+
+                if States.InstantBobber then
+                    task.spawn(function()
+                        local b = rod:WaitForChild("bobber", 1.5)
+                        if not States.InstantBobber then return end
+                        if b and b:IsA("BasePart") and not b:GetAttribute("Snapped") then
+                            b:SetAttribute("Snapped", true)
+                            snapBobberToWater(b)
+                        end
+                    end)
+                end
+
+                task.wait(0.8)
+                isCasting = false
+            end
+        end
+    end)
+
+    -- 🔒 Position Freeze ลูป
+    local freezeConn = RunService.Heartbeat:Connect(function()
+        if States.PositionFreeze then
+            local root = getRoot()
+            if root then
+                if not frozenCFrame then
+                    frozenCFrame = root.CFrame
+                end
+                root.CFrame = frozenCFrame
+                root.AssemblyLinearVelocity = Vector3.zero
+                root.AssemblyAngularVelocity = Vector3.zero
+            end
+        else
+            frozenCFrame = nil
+        end
+    end)
+    table.insert(hubConnections, freezeConn)
+
+    -- ⌨️ คีย์ลัด [ Q ] และ [ F ]
+    local inputConn = UserInputService.InputBegan:Connect(function(input, processed)
+        if processed or UserInputService:GetFocusedTextBox() then return end
+        if input.KeyCode == Enum.KeyCode.Q then
+            setFishingToggleVisual("InstantCast", not States.InstantCast, true)
+        elseif input.KeyCode == Enum.KeyCode.F then
+            setFishingToggleVisual("PositionFreeze", not States.PositionFreeze, true)
+        end
+    end)
+    table.insert(hubConnections, inputConn)
+
+    addLog("🎣 ระบบออโต้ตกปลา (Auto Fishing V6) โหลดเสร็จสิ้น [Q: Cast, F: Freeze]", Color3.fromRGB(52, 211, 153))
+end)()
 
 -- ===================================================================
--- 🔮 TAB 1: PEARL AUTO APPRAISE
+-- 🔮 TAB 2: PEARL AUTO APPRAISE
 -- ===================================================================
 local PagePearl = TabFrames["Pearl"]
 
@@ -640,7 +1280,7 @@ RPCorner.CornerRadius = UDim.new(0, 6)
 RPCorner.Parent = RefreshPearlBtn
 
 -- ===================================================================
--- 🧙‍♂️ TAB 2: MERLIN AUTO BUFFS
+-- 🧙‍♂️ TAB 3: MERLIN AUTO BUFFS
 -- ===================================================================
 local PageMerlin = TabFrames["Merlin"]
 
@@ -728,7 +1368,7 @@ TMACorner.CornerRadius = UDim.new(0, 6)
 TMACorner.Parent = ToggleMerlinAuto
 
 -- ===================================================================
--- 🪱 TAB 3: BAIT & CRATES (เหยื่อ & กรง)
+-- 🪱 TAB 4: BAIT & CRATES (ซื้อเหยื่อ & กรง)
 -- ===================================================================
 local PageBaitShop = TabFrames["BaitShop"]
 
@@ -857,7 +1497,7 @@ BRTCorner.CornerRadius = UDim.new(0, 6)
 BRTCorner.Parent = BuyReinforcedTrapBtn
 
 -- ===================================================================
--- 🌌 TAB 4: AURORA TOTEM (46 พิกัด)
+-- 🌌 TAB 5: AURORA TOTEM (46 พิกัด)
 -- ===================================================================
 local PageAurora = TabFrames["Aurora"]
 
@@ -933,8 +1573,9 @@ ToggleAuroraLoopBtn.Parent = PageAurora
 local TALBCorner = Instance.new("UICorner")
 TALBCorner.CornerRadius = UDim.new(0, 6)
 TALBCorner.Parent = ToggleAuroraLoopBtn
+
 -- ===================================================================
--- ⚡ TAB 5: OLYMPUS ROD TELEPORT (วาปไปทำเบ็ดโอลิมปัส ชั้น 1 - 6)
+-- ⚡ TAB 6: OLYMPUS ROD TELEPORT (วาร์ปทำเบ็ดโอลิมปัส ชั้น 1 - 6)
 -- ===================================================================
 local PageOlympus = TabFrames["Olympus"]
 
@@ -1182,7 +1823,333 @@ BottomSpacer.Position = UDim2.new(0, 0, 0, 552)
 BottomSpacer.BackgroundTransparency = 1
 BottomSpacer.Parent = PageOlympus
 
-selectTab("Pearl")
+-- ===================================================================
+-- 💾 TAB 7: CONFIG MANAGER (ระบบเซฟคอนฟิกแยกตามชื่อไอดี)
+-- ===================================================================
+;(function()
+    local PageConfig = TabFrames["Config"]
+    if not PageConfig then return end
+
+    local ConfigLayout = Instance.new("UIListLayout")
+    ConfigLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    ConfigLayout.Padding = UDim.new(0, 8)
+    ConfigLayout.Parent = PageConfig
+
+    -- Card 1: ข้อมูลไฟล์คอนฟิก & สถานะ
+    local InfoCard = Instance.new("Frame")
+    InfoCard.Name = "InfoCard"
+    InfoCard.Size = UDim2.new(1, 0, 0, 95)
+    InfoCard.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+    InfoCard.BorderSizePixel = 0
+    InfoCard.LayoutOrder = 1
+    InfoCard.Parent = PageConfig
+
+    local ICorner = Instance.new("UICorner")
+    ICorner.CornerRadius = UDim.new(0, 8)
+    ICorner.Parent = InfoCard
+
+    local IStroke = Instance.new("UIStroke")
+    IStroke.Color = Color3.fromRGB(45, 50, 68)
+    IStroke.Thickness = 1
+    IStroke.Parent = InfoCard
+
+    local LblConfigTitle = Instance.new("TextLabel")
+    LblConfigTitle.Size = UDim2.new(1, -24, 0, 22)
+    LblConfigTitle.Position = UDim2.new(0, 12, 0, 8)
+    LblConfigTitle.BackgroundTransparency = 1
+    LblConfigTitle.Text = "📁 ระบบเซฟคอนฟิก (Pond Hub Config System)"
+    LblConfigTitle.TextColor3 = Color3.fromRGB(147, 197, 253)
+    LblConfigTitle.TextSize = 14
+    LblConfigTitle.Font = Enum.Font.GothamBold
+    LblConfigTitle.TextXAlignment = Enum.TextXAlignment.Left
+    LblConfigTitle.Parent = InfoCard
+
+    local LblConfigFile = Instance.new("TextLabel")
+    LblConfigFile.Name = "LblConfigFile"
+    LblConfigFile.Size = UDim2.new(1, -24, 0, 18)
+    LblConfigFile.Position = UDim2.new(0, 12, 0, 32)
+    LblConfigFile.BackgroundTransparency = 1
+    LblConfigFile.Text = "📄 ไฟล์: workspace/" .. configFileName
+    LblConfigFile.TextColor3 = Color3.fromRGB(209, 213, 219)
+    LblConfigFile.TextSize = 12
+    LblConfigFile.Font = Enum.Font.Code
+    LblConfigFile.TextXAlignment = Enum.TextXAlignment.Left
+    LblConfigFile.Parent = InfoCard
+
+    local LblLastSaved = Instance.new("TextLabel")
+    LblLastSaved.Name = "LblLastSaved"
+    LblLastSaved.Size = UDim2.new(1, -24, 0, 18)
+    LblLastSaved.Position = UDim2.new(0, 12, 0, 52)
+    LblLastSaved.BackgroundTransparency = 1
+    LblLastSaved.Text = "⏰ บันทึกล่าสุด: " .. tostring(Config.LastSaved)
+    LblLastSaved.TextColor3 = Color3.fromRGB(156, 163, 175)
+    LblLastSaved.TextSize = 11
+    LblLastSaved.Font = Enum.Font.Gotham
+    LblLastSaved.TextXAlignment = Enum.TextXAlignment.Left
+    LblLastSaved.Parent = InfoCard
+
+    local LblStatus = Instance.new("TextLabel")
+    LblStatus.Name = "LblStatus"
+    LblStatus.Size = UDim2.new(1, -24, 0, 18)
+    LblStatus.Position = UDim2.new(0, 12, 0, 72)
+    LblStatus.BackgroundTransparency = 1
+    LblStatus.Text = "🟢 สถานะ: ซิงค์พร้อมใช้งาน (Synced)"
+    LblStatus.TextColor3 = Color3.fromRGB(52, 211, 153)
+    LblStatus.TextSize = 11
+    LblStatus.Font = Enum.Font.GothamSemibold
+    LblStatus.TextXAlignment = Enum.TextXAlignment.Left
+    LblStatus.Parent = InfoCard
+
+    -- Card 2: ปุ่มจัดการคอนฟิก
+    local ActionCard = Instance.new("Frame")
+    ActionCard.Name = "ActionCard"
+    ActionCard.Size = UDim2.new(1, 0, 0, 96)
+    ActionCard.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+    ActionCard.BorderSizePixel = 0
+    ActionCard.LayoutOrder = 2
+    ActionCard.Parent = PageConfig
+
+    local ACorner = Instance.new("UICorner")
+    ACorner.CornerRadius = UDim.new(0, 8)
+    ACorner.Parent = ActionCard
+
+    local AStroke = Instance.new("UIStroke")
+    AStroke.Color = Color3.fromRGB(45, 50, 68)
+    AStroke.Thickness = 1
+    AStroke.Parent = ActionCard
+
+    -- ปุ่มบันทึกคอนฟิก
+    local SaveBtn = Instance.new("TextButton")
+    SaveBtn.Name = "SaveBtn"
+    SaveBtn.Size = UDim2.new(0.48, -4, 0, 36)
+    SaveBtn.Position = UDim2.new(0, 12, 0, 10)
+    SaveBtn.BackgroundColor3 = Color3.fromRGB(16, 185, 129)
+    SaveBtn.Text = "💾 บันทึกคอนฟิก (Save Now)"
+    SaveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SaveBtn.TextSize = 12
+    SaveBtn.Font = Enum.Font.GothamBold
+    SaveBtn.Parent = ActionCard
+
+    local SCorner = Instance.new("UICorner")
+    SCorner.CornerRadius = UDim.new(0, 6)
+    SCorner.Parent = SaveBtn
+
+    -- ปุ่มโหลดคอนฟิกใหม่
+    local LoadBtn = Instance.new("TextButton")
+    LoadBtn.Name = "LoadBtn"
+    LoadBtn.Size = UDim2.new(0.48, -4, 0, 36)
+    LoadBtn.Position = UDim2.new(0.52, -8, 0, 10)
+    LoadBtn.BackgroundColor3 = Color3.fromRGB(59, 130, 246)
+    LoadBtn.Text = "🔄 โหลดคอนฟิก (Reload)"
+    LoadBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    LoadBtn.TextSize = 12
+    LoadBtn.Font = Enum.Font.GothamBold
+    LoadBtn.Parent = ActionCard
+
+    local LCorner = Instance.new("UICorner")
+    LCorner.CornerRadius = UDim.new(0, 6)
+    LCorner.Parent = LoadBtn
+
+    -- ปุ่มรีเซ็ตค่าเริ่มต้น
+    local ResetBtn = Instance.new("TextButton")
+    ResetBtn.Name = "ResetBtn"
+    ResetBtn.Size = UDim2.new(1, -24, 0, 34)
+    ResetBtn.Position = UDim2.new(0, 12, 0, 52)
+    ResetBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 58)
+    ResetBtn.Text = "🗑️ รีเซ็ตเป็นค่าเริ่มต้น (Reset Defaults)"
+    ResetBtn.TextColor3 = Color3.fromRGB(248, 113, 113)
+    ResetBtn.TextSize = 12
+    ResetBtn.Font = Enum.Font.GothamBold
+    ResetBtn.Parent = ActionCard
+
+    local RCorner = Instance.new("UICorner")
+    RCorner.CornerRadius = UDim.new(0, 6)
+    RCorner.Parent = ResetBtn
+
+    -- Card 3: สวิตช์ออโต้เซฟ (Auto-Save on Change)
+    local AutoSaveCard = Instance.new("Frame")
+    AutoSaveCard.Name = "AutoSaveCard"
+    AutoSaveCard.Size = UDim2.new(1, 0, 0, 48)
+    AutoSaveCard.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+    AutoSaveCard.BorderSizePixel = 0
+    AutoSaveCard.LayoutOrder = 3
+    AutoSaveCard.Parent = PageConfig
+
+    local ASCorner = Instance.new("UICorner")
+    ASCorner.CornerRadius = UDim.new(0, 8)
+    ASCorner.Parent = AutoSaveCard
+
+    local ASStroke = Instance.new("UIStroke")
+    ASStroke.Color = Color3.fromRGB(45, 50, 68)
+    ASStroke.Thickness = 1
+    ASStroke.Parent = AutoSaveCard
+
+    local LblASTitle = Instance.new("TextLabel")
+    LblASTitle.Size = UDim2.new(1, -80, 0, 20)
+    LblASTitle.Position = UDim2.new(0, 12, 0, 5)
+    LblASTitle.BackgroundTransparency = 1
+    LblASTitle.Text = "🔁 บันทึกอัตโนมัติ (Auto-Save on Toggle)"
+    LblASTitle.TextColor3 = Color3.fromRGB(240, 240, 255)
+    LblASTitle.TextSize = 13
+    LblASTitle.Font = Enum.Font.GothamBold
+    LblASTitle.TextXAlignment = Enum.TextXAlignment.Left
+    LblASTitle.Parent = AutoSaveCard
+
+    local LblASDesc = Instance.new("TextLabel")
+    LblASDesc.Size = UDim2.new(1, -80, 0, 16)
+    LblASDesc.Position = UDim2.new(0, 12, 0, 26)
+    LblASDesc.BackgroundTransparency = 1
+    LblASDesc.Text = "บันทึกลงไฟล์ทันทีเมื่อมีการกดเปลี่ยนสวิตช์หรือกดคีย์ลัด Q / F"
+    LblASDesc.TextColor3 = Color3.fromRGB(156, 163, 175)
+    LblASDesc.TextSize = 11
+    LblASDesc.Font = Enum.Font.Gotham
+    LblASDesc.TextXAlignment = Enum.TextXAlignment.Left
+    LblASDesc.Parent = AutoSaveCard
+
+    local SwitchAS = Instance.new("TextButton")
+    SwitchAS.Name = "SwitchAS"
+    SwitchAS.Size = UDim2.new(0, 48, 0, 24)
+    SwitchAS.Position = UDim2.new(1, -60, 0.5, -12)
+    SwitchAS.BackgroundColor3 = Config.AutoSave and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(50, 54, 70)
+    SwitchAS.Text = ""
+    SwitchAS.Parent = AutoSaveCard
+
+    local SASCorner = Instance.new("UICorner")
+    SASCorner.CornerRadius = UDim.new(1, 0)
+    SASCorner.Parent = SwitchAS
+
+    local KnobAS = Instance.new("Frame")
+    KnobAS.Name = "KnobAS"
+    KnobAS.Size = UDim2.new(0, 18, 0, 18)
+    KnobAS.Position = Config.AutoSave and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
+    KnobAS.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    KnobAS.BorderSizePixel = 0
+    KnobAS.Parent = SwitchAS
+
+    local KASCorner = Instance.new("UICorner")
+    KASCorner.CornerRadius = UDim.new(1, 0)
+    KASCorner.Parent = KnobAS
+
+    -- Card 4: สรุปค่าคอนฟิกปัจจุบัน
+    local SummaryCard = Instance.new("Frame")
+    SummaryCard.Name = "SummaryCard"
+    SummaryCard.Size = UDim2.new(1, 0, 0, 88)
+    SummaryCard.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+    SummaryCard.BorderSizePixel = 0
+    SummaryCard.LayoutOrder = 4
+    SummaryCard.Parent = PageConfig
+
+    local SCardCorner = Instance.new("UICorner")
+    SCardCorner.CornerRadius = UDim.new(0, 8)
+    SCardCorner.Parent = SummaryCard
+
+    local SCardStroke = Instance.new("UIStroke")
+    SCardStroke.Color = Color3.fromRGB(40, 44, 58)
+    SCardStroke.Thickness = 1
+    SCardStroke.Parent = SummaryCard
+
+    local LblSumTitle = Instance.new("TextLabel")
+    LblSumTitle.Size = UDim2.new(1, -24, 0, 20)
+    LblSumTitle.Position = UDim2.new(0, 12, 0, 6)
+    LblSumTitle.BackgroundTransparency = 1
+    LblSumTitle.Text = "📋 ค่าคอนฟิกตกปลาที่บันทึกไว้ปัจจุบัน (Current Saved Config):"
+    LblSumTitle.TextColor3 = Color3.fromRGB(167, 139, 250)
+    LblSumTitle.TextSize = 12
+    LblSumTitle.Font = Enum.Font.GothamBold
+    LblSumTitle.TextXAlignment = Enum.TextXAlignment.Left
+    LblSumTitle.Parent = SummaryCard
+
+    local LblSummary = Instance.new("TextLabel")
+    LblSummary.Name = "LblSummary"
+    LblSummary.Size = UDim2.new(1, -24, 0, 54)
+    LblSummary.Position = UDim2.new(0, 12, 0, 26)
+    LblSummary.BackgroundTransparency = 1
+    LblSummary.TextColor3 = Color3.fromRGB(209, 213, 219)
+    LblSummary.TextSize = 11
+    LblSummary.Font = Enum.Font.Code
+    LblSummary.TextXAlignment = Enum.TextXAlignment.Left
+    LblSummary.TextYAlignment = Enum.TextYAlignment.Top
+    LblSummary.Parent = SummaryCard
+
+    -- ฟังก์ชันอัปเดตการแสดงผลในหน้าคอนฟิก
+    updateConfigSummary = function()
+        pcall(function()
+            if LblLastSaved then
+                LblLastSaved.Text = "⏰ บันทึกล่าสุด: " .. tostring(Config.LastSaved)
+            end
+            if LblSummary then
+                local f = Config.Fishing
+                local text = string.format(
+                    "🎒 AutoEquip: %s  |  ⚡ InstantCast [Q]: %s\n🎯 InstantBobber: %s  |  🔘 AutoShake: %s\n🎣 AutoReel: %s  |  🔒 Freeze [F]: %s",
+                    f.AutoEquipRod and "🟢 ON" or "⚪ OFF",
+                    f.InstantCast and "🟢 ON" or "⚪ OFF",
+                    f.InstantBobber and "🟢 ON" or "⚪ OFF",
+                    f.AutoShake and "🟢 ON" or "⚪ OFF",
+                    f.InstantAutoReel and "🟢 ON" or "⚪ OFF",
+                    f.PositionFreeze and "🟢 ON" or "⚪ OFF"
+                )
+                LblSummary.Text = text
+            end
+            if SwitchAS and KnobAS then
+                SwitchAS.BackgroundColor3 = Config.AutoSave and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(50, 54, 70)
+                KnobAS.Position = Config.AutoSave and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
+            end
+        end)
+    end
+
+    SwitchAS.MouseButton1Click:Connect(function()
+        Config.AutoSave = not Config.AutoSave
+        updateConfigSummary()
+        if Config.AutoSave then
+            addLog("🔁 เปิดใช้งานบันทึกคอนฟิกอัตโนมัติ (Auto-Save ON)", Color3.fromRGB(52, 211, 153))
+        else
+            addLog("🔁 ปิดใช้งานบันทึกคอนฟิกอัตโนมัติ (Auto-Save OFF)", Color3.fromRGB(156, 163, 175))
+        end
+        saveConfig()
+    end)
+
+    SaveBtn.MouseButton1Click:Connect(function()
+        saveConfig()
+        updateConfigSummary()
+        addLog(string.format("💾 บันทึกคอนฟิกลง workspace/%s สำเร็จ", configFileName), Color3.fromRGB(52, 211, 153))
+        notify("Save Config", "บันทึกคอนฟิกสำเร็จเรียบร้อย!", 2)
+    end)
+
+    LoadBtn.MouseButton1Click:Connect(function()
+        if loadConfigFile() then
+            if Config.Fishing and setFishingToggleVisual then
+                for name, val in pairs(Config.Fishing) do
+                    setFishingToggleVisual(name, val, false)
+                end
+            end
+            updateConfigSummary()
+            addLog(string.format("🔄 โหลดคอนฟิกจาก workspace/%s สำเร็จ", configFileName), Color3.fromRGB(96, 165, 250))
+            notify("Load Config", "โหลดคอนฟิกสำเร็จเรียบร้อย!", 2)
+        else
+            addLog("⚠️ ไม่พบไฟล์คอนฟิกเดิม กำลังสร้างใหม่...", Color3.fromRGB(251, 191, 36))
+            saveConfig()
+            updateConfigSummary()
+        end
+    end)
+
+    ResetBtn.MouseButton1Click:Connect(function()
+        resetDefaultConfig()
+        if Config.Fishing and setFishingToggleVisual then
+            for name, val in pairs(Config.Fishing) do
+                setFishingToggleVisual(name, val, false)
+            end
+        end
+        saveConfig()
+        updateConfigSummary()
+        addLog("🗑️ รีเซ็ตคอนฟิกกลับเป็นค่าเริ่มต้นเรียบร้อย", Color3.fromRGB(248, 113, 113))
+        notify("Reset Config", "รีเซ็ตคอนฟิกเป็นค่าเริ่มต้นแล้ว", 2)
+    end)
+
+    -- อัปเดตข้อความสรุปค่าคอนฟิกครั้งแรก
+    updateConfigSummary()
+end)()
+
+selectTab("Fishing")
 
 -- ===================================================================
 -- 🖱️ DRAGGABLE & KEYBIND [ Z ]
@@ -1252,10 +2219,10 @@ FloatingToggle.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- ⌨️ กดปุ่ม [ Z ] เพื่อเปิด / ปิด เมนู (ไม่โดนบล็อก)
+-- ⌨️ กดปุ่ม [ Z ] หรือ [ RightShift ] เพื่อเปิด / ปิด เมนู (ไม่โดนบล็อก)
 UserInputService.InputBegan:Connect(function(input)
     if UserInputService:GetFocusedTextBox() then return end
-    if input.KeyCode == Enum.KeyCode.Z then
+    if input.KeyCode == Enum.KeyCode.Z or input.KeyCode == Enum.KeyCode.RightShift then
         MainFrame.Visible = not MainFrame.Visible
     end
 end)
@@ -1269,7 +2236,7 @@ local isMinimized = false
 MinBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     TabBar.Visible = not isMinimized
-    for id, f in pairs(TabFrames) do f.Visible = (not isMinimized and id == "Pearl") end
+    for id, f in pairs(TabFrames) do f.Visible = (not isMinimized and id == currentTabId) end
     LogFrame.Visible = not isMinimized
     MainFrame.Size = isMinimized and UDim2.new(0, 660, 0, 48) or UDim2.new(0, 660, 0, 660)
 end)
@@ -2599,18 +3566,8 @@ local function startAutoMovement()
 
         enforce()
 
-        -- 2. ดักจับเมื่อค่าใน Humanoid ถูกเขียนทับ
-        currentConnWS = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-            if hum.WalkSpeed ~= TARGET_SPEED then
-                hum.WalkSpeed = TARGET_SPEED
-            end
-        end)
-
-        currentConnJP = hum:GetPropertyChangedSignal("JumpPower"):Connect(function()
-            if hum.JumpPower ~= TARGET_JUMP then
-                hum.JumpPower = TARGET_JUMP
-            end
-        end)
+        -- 2. ไม่ใช้ GetPropertyChangedSignal เพื่อป้องกัน exponential deferred event growth
+        -- ให้ PreSimulation ด้านล่างคอยล็อกค่าทุกเฟรมแทนอย่างปลอดภัย
 
         -- 3. ล็อกค่าต่อเนื่องทุก Frame ก่อน Physics ทำงาน (PreSimulation)
         currentConnSim = RunService.PreSimulation:Connect(function()
@@ -2631,16 +3588,17 @@ local function startAutoMovement()
                 end
             end
         end)
+        table.insert(hubConnections, currentConnSim)
     end
 
     if LocalPlayer.Character then
         task.spawn(function() setupCharacter(LocalPlayer.Character) end)
     end
 
-    LocalPlayer.CharacterAdded:Connect(function(char)
+    table.insert(hubConnections, LocalPlayer.CharacterAdded:Connect(function(char)
         task.wait(0.2)
         setupCharacter(char)
-    end)
+    end))
 
     addLog("🏃‍♂️ ล็อกความเร็ววิ่ง 50 และกระโดดสูง 100 ถาวร (แก้ปัญหาวิ่งช้าสลับเร็วเรียบร้อย)", Color3.fromRGB(52, 211, 153))
 end
@@ -2755,12 +3713,13 @@ end
 -- 🔄 BACKGROUND MONITOR (ตรวจแสดงผล UI อย่างเดียว ไม่ซื้อ/ไม่วาร์ปเอง)
 -- ===================================================================
 task.spawn(function()
+    selectTab("Fishing")
     updatePearlUI()
     checkMerlinBuffs()
     startAutoFishRadar()
     startAutoMovement()
-    addLog("🔒 Pond Hub โหลดสำเร็จ! (ทุกฟังก์ชันอยู่ในโหมด Standby ปิดอยู่)", Color3.fromRGB(167, 139, 250))
-    notify("Pond Hub", "โหลดสำเร็จ! กดปุ่ม [ Z ] เพื่อเปิด/ปิด UI", 4)
+    addLog("🔒 Pond Hub โหลดสำเร็จ! (🎣 ตกปลา [Q/F] | 🔮 รีไข่มุก | 🏃‍♂️ วิ่ง 50/โดด 100)", Color3.fromRGB(167, 139, 250))
+    notify("Pond Hub", "โหลดสำเร็จ! กด [ Z ] เปิด/ปิด UI | [ Q ] สลับตกปลา | [ F ] สลับล็อกตำแหน่ง", 4)
     
     while true do
         task.wait(10)
