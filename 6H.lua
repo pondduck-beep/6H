@@ -7,12 +7,13 @@
     - จะไม่มีการวาร์ป ไม่มีการซื้อของ และไม่มีการรีบัฟใดๆ ทั้งสิ้นจนกว่าผู้ใช้จะกดปุ่มเปิดเอง
     - ⌨️ กดปุ่ม [ Z ] หรือ [ RightShift ] เพื่อเปิด / ปิด หน้าต่าง UI ได้ตลอดเวลา
     - 🔄 ปุ่ม Rejoin สำหรับเข้าเซิร์ฟเวอร์ใหม่อัตโนมัติ (บนแถบ Topbar)
+    - ⬛ Auto Skip Loading: ข้ามหน้าต่างโหลดสีดำ (Loading Screen) อัตโนมัติทันทีก่อนเริ่มสคริปต์
     - 🐟 Auto Fish Radar: เปิดเรดาร์มองปลา (Fish Radar) อัตโนมัติทันทีเมื่อรันสคริปต์
     - 🎣 Tab 1: ออโต้ตกปลา (Auto Fishing V6) เหวี่ยง/ทุ่น/จุดขาว/ดึงปลาทันที [Q: Cast, F: Freeze]
     - 🔮 Tab 2: รีไข่มุก Golden Sea Pearl -> Shrouded ครบทุกเม็ด (Fast Session Reroll)
-    - 🧙‍♂️ Tab 3: ออโต้ต่ออายุบัฟ Merlin (Lucky V / Lure IV / Insight IV) ระยะไกล
+    - 🧙♂️ Tab 3: ออโต้ต่ออายุบัฟ Merlin (Lucky V / Lure IV / Insight IV) ระยะไกล
     - 🪱 Tab 4: ออโต้ซื้อเหยื่อเรื่อยๆ & ออโต้เปิดเหยื่อเรื่อยๆ & ซื้อกรงดักปู
-    - 🌌 Tab 5: ออโต้ซื้อ Aurora Totem วาร์ปตรวจสอบ 46 พิกัดทั่วแมพ
+    - 🗿 Tab 5: Totem (ออโต้ซื้อ Aurora 46 จุด & ออโต้เปิด Meteor Totem เก็บแร่ 100%)
     - ⚡ Tab 6: วาร์ปไปทำเบ็ดโอลิมปัส ชั้น 1 - 6 & ออโต้หมุนกระจก 5 จุด & ออโต้ส่งเควสดาบ
     - 🏃 Auto Movement: ล็อกความเร็ววิ่ง 50 และกระโดดสูง 100 ถาวร (ไม่แกว่ง ไม่กระตุก)
     ===================================================================
@@ -25,6 +26,129 @@ local StarterGui = game:GetService("StarterGui")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
+
+-- ===================================================================
+-- ⬛ SKIP BLACK LOADING SCREEN (ข้ามหน้าจอโหลดสีดำก่อนเริ่มการทำงานของ Hub)
+-- ===================================================================
+do
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    local function skipBlackLoadingScreen()
+        pcall(function()
+            -- 1. เรียกฟังก์ชัน 'play' ของ loading/client โดยตรงหากมีใน GC
+            if getgc then
+                for _, obj in ipairs(getgc(true)) do
+                    if type(obj) == "function" and islclosure and islclosure(obj) then
+                        local info = debug.getinfo(obj)
+                        if info.source and info.source:find("loading") and info.name == "play" then
+                            task.spawn(obj)
+                            break
+                        end
+                    end
+                end
+            end
+        end)
+
+        pcall(function()
+            -- 2. ส่งคีย์ Enter และ Mouse Click เผื่อตัวเกมรอ [press any key to continue]
+            if VirtualInputManager then
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+                task.wait(0.05)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+                VirtualInputManager:SendMouseButtonEvent(500, 500, 0, true, game, 0)
+                task.wait(0.05)
+                VirtualInputManager:SendMouseButtonEvent(500, 500, 0, false, game, 0)
+            end
+        end)
+
+        pcall(function()
+            -- 3. แจ้งเตือนเซิร์ฟเวอร์ว่าโหลดเสร็จเรียบร้อย
+            local ev = ReplicatedStorage:FindFirstChild("events")
+            local fl = ev and ev:FindFirstChild("finishedloading")
+            if fl then
+                fl:FireServer()
+            end
+        end)
+
+        pcall(function()
+            -- 4. ตั้ง Attribute การเกิดของผู้เล่น
+            LocalPlayer:SetAttribute("SpawnFinished", true)
+            LocalPlayer:SetAttribute("LoadingScreenFinished", true)
+        end)
+
+        pcall(function()
+            -- 5. ปิดและลบหน้าต่าง Loading ออกจาก PlayerGui และเปิด HUD
+            local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 10)
+            if pg then
+                local loading = pg:FindFirstChild("loading")
+                if loading then
+                    loading.Enabled = false
+                    loading:Destroy()
+                end
+                local hud = pg:FindFirstChild("hud")
+                if hud then hud.Enabled = true end
+                local backpack = pg:FindFirstChild("backpack")
+                if backpack then backpack.Enabled = true end
+            end
+        end)
+
+        pcall(function()
+            -- 6. ปลดล็อก CoreGui และระบบมุมกล้อง
+            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
+            if workspace.CurrentCamera then
+                workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+            end
+        end)
+
+        pcall(function()
+            -- 7. เช็กตำแหน่งตัวละคร หากยังติดอยู่ในกล่องโหลด (Loading Box ใต้แมพ) ให้ย้ายมาจุดเกิด
+            local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            local root = char:WaitForChild("HumanoidRootPart", 10)
+            if root and root.Position.Y < -50 then
+                local spawningAt = LocalPlayer:GetAttribute("SpawningAt")
+                if spawningAt then
+                    if typeof(spawningAt) == "Vector3" then
+                        root.CFrame = CFrame.new(spawningAt + Vector3.new(0, 3, 0))
+                    elseif type(spawningAt) == "string" then
+                        local coords = {}
+                        for num in string.gmatch(spawningAt, "[%-%d%.]+") do
+                            table.insert(coords, tonumber(num))
+                        end
+                        if #coords == 3 then
+                            root.CFrame = CFrame.new(coords[1], coords[2] + 3, coords[3])
+                        end
+                    end
+                else
+                    root.CFrame = CFrame.new(386, 135, 245)
+                end
+            end
+        end)
+    end
+
+    -- สั่งข้ามหน้าจอดำทันทีก่อนเริ่มสคริปต์
+    skipBlackLoadingScreen()
+
+    -- เฝ้าระวังกรณีหน้าต่าง loading ถูกสร้างตามหลัง
+    pcall(function()
+        local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 10)
+        if pg then
+            local loadingWatcher
+            loadingWatcher = pg.ChildAdded:Connect(function(child)
+                if child.Name == "loading" then
+                    task.wait(0.1)
+                    skipBlackLoadingScreen()
+                end
+            end)
+            task.delay(15, function()
+                if loadingWatcher then
+                    loadingWatcher:Disconnect()
+                    loadingWatcher = nil
+                end
+            end)
+        end
+    end)
+
+    task.wait(0.5)
+end
 
 local function getRoot()
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -65,8 +189,10 @@ pcall(function()
     end
 end)
 
+_G.PondHub_isMeteorRunning = false
 local hubConnections = {}
 _G.PondHub_Cleanup = function()
+    _G.PondHub_isMeteorRunning = false
     for _, conn in ipairs(hubConnections) do
         pcall(function() conn:Disconnect() end)
     end
@@ -626,9 +752,9 @@ end
 
 createTab("Fishing", "ตกปลา", "🎣", 1)
 createTab("Pearl", "รีไข่มุก", "🔮", 2)
-createTab("Merlin", "Merlin", "🧙‍♂️", 3)
+createTab("Merlin", "Merlin", "🧙♂️", 3)
 createTab("BaitShop", "เหยื่อ&กรง", "🪱", 4)
-createTab("Aurora", "Aurora", "🌌", 5)
+createTab("Aurora", "Totem", "🗿", 5)
 createTab("Olympus", "โอลิมปัส", "⚡", 6)
 createTab("Config", "เซฟคอนฟิก", "💾", 7)
 
@@ -988,7 +1114,7 @@ createTab("Config", "เซฟคอนฟิก", "💾", 7)
         while true do
             task.wait(0.5)
             if States.AutoEquipRod and States.InstantCast then
-                local isBusy = isPearlRunning or isMirrorRunning or isSwordRunning or isAuroraRunning
+                local isBusy = isPearlRunning or isMirrorRunning or isSwordRunning or isAuroraRunning or _G.PondHub_isMeteorRunning
                 if not isBusy then
                     ensureEquippedRod()
                 end
@@ -1079,7 +1205,7 @@ createTab("Config", "เซฟคอนฟิก", "💾", 7)
         while true do
             task.wait(0.2)
             if not States.InstantCast or isCasting then continue end
-            local isBusy = isPearlRunning or isMirrorRunning or isSwordRunning or isAuroraRunning
+            local isBusy = isPearlRunning or isMirrorRunning or isSwordRunning or isAuroraRunning or _G.PondHub_isMeteorRunning
             if isBusy then continue end
 
             local character = LocalPlayer.Character
@@ -1280,7 +1406,7 @@ RPCorner.CornerRadius = UDim.new(0, 6)
 RPCorner.Parent = RefreshPearlBtn
 
 -- ===================================================================
--- 🧙‍♂️ TAB 3: MERLIN AUTO BUFFS
+-- 🧙♂️ TAB 3: MERLIN AUTO BUFFS
 -- ===================================================================
 local PageMerlin = TabFrames["Merlin"]
 
@@ -1497,7 +1623,7 @@ BRTCorner.CornerRadius = UDim.new(0, 6)
 BRTCorner.Parent = BuyReinforcedTrapBtn
 
 -- ===================================================================
--- 🌌 TAB 5: AURORA TOTEM (46 พิกัด)
+-- 🗿 TAB 5: TOTEM (AURORA & METEOR TOTEM)
 -- ===================================================================
 local PageAurora = TabFrames["Aurora"]
 
@@ -1515,7 +1641,7 @@ local LblAuroraStatus = Instance.new("TextLabel")
 LblAuroraStatus.Size = UDim2.new(1, -24, 0, 26)
 LblAuroraStatus.Position = UDim2.new(0, 12, 0, 8)
 LblAuroraStatus.BackgroundTransparency = 1
-LblAuroraStatus.Text = "🎯 สถานะ: ปิดอยู่ (Standby)"
+LblAuroraStatus.Text = "🎯 สถานะ Aurora: ปิดอยู่ (Standby)"
 LblAuroraStatus.TextColor3 = Color3.fromRGB(156, 163, 175)
 LblAuroraStatus.TextSize = 14
 LblAuroraStatus.Font = Enum.Font.GothamBold
@@ -1573,6 +1699,487 @@ ToggleAuroraLoopBtn.Parent = PageAurora
 local TALBCorner = Instance.new("UICorner")
 TALBCorner.CornerRadius = UDim.new(0, 6)
 TALBCorner.Parent = ToggleAuroraLoopBtn
+
+-- ===================================================================
+-- ☄️ AUTO SPAM METEOR TOTEM (CRATER COLLECTOR 100%) SECTION
+-- ===================================================================
+do
+    local RunService = game:GetService("RunService")
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    local STAND_POSITION = Vector3.new(5719.65, 194.86, 615.95)
+    local STAND_CFRAME = CFrame.new(STAND_POSITION)
+    local totalSpamCount = 0
+    local totalMeteorCollected = 0
+    local noClipConn = nil
+
+    -- Header แยกหมวดหมู่ Meteor Totem
+    local MeteorHeader = Instance.new("Frame")
+    MeteorHeader.Size = UDim2.new(1, 0, 0, 32)
+    MeteorHeader.Position = UDim2.new(0, 0, 0, 224)
+    MeteorHeader.BackgroundColor3 = Color3.fromRGB(35, 30, 48)
+    MeteorHeader.BorderSizePixel = 0
+    MeteorHeader.Parent = PageAurora
+
+    local MHCorner = Instance.new("UICorner")
+    MHCorner.CornerRadius = UDim.new(0, 6)
+    MHCorner.Parent = MeteorHeader
+
+    local LblMeteorHeader = Instance.new("TextLabel")
+    LblMeteorHeader.Size = UDim2.new(1, -16, 1, 0)
+    LblMeteorHeader.Position = UDim2.new(0, 10, 0, 0)
+    LblMeteorHeader.BackgroundTransparency = 1
+    LblMeteorHeader.Text = "☄️ AUTO SPAM METEOR TOTEM (สแปมเปิดรัวๆ & เก็บแร่ 100%)"
+    LblMeteorHeader.TextColor3 = Color3.fromRGB(251, 146, 60)
+    LblMeteorHeader.TextSize = 12
+    LblMeteorHeader.Font = Enum.Font.GothamBold
+    LblMeteorHeader.TextXAlignment = Enum.TextXAlignment.Left
+    LblMeteorHeader.Parent = MeteorHeader
+
+    -- การ์ดแสดงสถานะ Meteor Totem
+    local MeteorCard = Instance.new("Frame")
+    MeteorCard.Size = UDim2.new(1, 0, 0, 116)
+    MeteorCard.Position = UDim2.new(0, 0, 0, 264)
+    MeteorCard.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+    MeteorCard.BorderSizePixel = 0
+    MeteorCard.Parent = PageAurora
+
+    local MCorner = Instance.new("UICorner")
+    MCorner.CornerRadius = UDim.new(0, 8)
+    MCorner.Parent = MeteorCard
+
+    local LblMeteorStatus = Instance.new("TextLabel")
+    LblMeteorStatus.Size = UDim2.new(1, -24, 0, 24)
+    LblMeteorStatus.Position = UDim2.new(0, 12, 0, 8)
+    LblMeteorStatus.BackgroundTransparency = 1
+    LblMeteorStatus.Text = "🎯 สถานะ Meteor: ปิดอยู่ (Standby)"
+    LblMeteorStatus.TextColor3 = Color3.fromRGB(156, 163, 175)
+    LblMeteorStatus.TextSize = 14
+    LblMeteorStatus.Font = Enum.Font.GothamBold
+    LblMeteorStatus.TextXAlignment = Enum.TextXAlignment.Left
+    LblMeteorStatus.Parent = MeteorCard
+
+    local LblMeteorStep = Instance.new("TextLabel")
+    LblMeteorStep.Size = UDim2.new(1, -24, 0, 22)
+    LblMeteorStep.Position = UDim2.new(0, 12, 0, 34)
+    LblMeteorStep.BackgroundTransparency = 1
+    LblMeteorStep.Text = "📍 จุดเปิด Meteor: 5719.65, 194.86, 615.95"
+    LblMeteorStep.TextColor3 = Color3.fromRGB(147, 197, 253)
+    LblMeteorStep.TextSize = 12
+    LblMeteorStep.Font = Enum.Font.GothamSemibold
+    LblMeteorStep.TextXAlignment = Enum.TextXAlignment.Left
+    LblMeteorStep.Parent = MeteorCard
+
+    local LblMeteorStats = Instance.new("TextLabel")
+    LblMeteorStats.Size = UDim2.new(1, -24, 0, 24)
+    LblMeteorStats.Position = UDim2.new(0, 12, 0, 58)
+    LblMeteorStats.BackgroundTransparency = 1
+    LblMeteorStats.Text = "💎 เก็บแร่: 0 ชิ้น | ⚡ สแปม: 0 ครั้ง | 🎒 Meteor Totem: รอเริ่ม..."
+    LblMeteorStats.TextColor3 = Color3.fromRGB(52, 211, 153)
+    LblMeteorStats.TextSize = 13
+    LblMeteorStats.Font = Enum.Font.GothamBold
+    LblMeteorStats.TextXAlignment = Enum.TextXAlignment.Left
+    LblMeteorStats.Parent = MeteorCard
+
+    local LblMeteorDesc = Instance.new("TextLabel")
+    LblMeteorDesc.Size = UDim2.new(1, -24, 0, 22)
+    LblMeteorDesc.Position = UDim2.new(0, 12, 0, 84)
+    LblMeteorDesc.BackgroundTransparency = 1
+    LblMeteorDesc.Text = "⚡ สแปมเปิด Meteor Totem รัวๆ + ซื้ออัตโนมัติทีละ 10 อันเมื่อหมด + เก็บแร่ 100%"
+    LblMeteorDesc.TextColor3 = Color3.fromRGB(156, 163, 175)
+    LblMeteorDesc.TextSize = 11
+    LblMeteorDesc.Font = Enum.Font.Gotham
+    LblMeteorDesc.TextXAlignment = Enum.TextXAlignment.Left
+    LblMeteorDesc.Parent = MeteorCard
+
+    -- ปุ่ม Toggle Auto Spam Meteor Totem (Default: OFF)
+    local ToggleMeteorBtn = Instance.new("TextButton")
+    ToggleMeteorBtn.Size = UDim2.new(1, 0, 0, 42)
+    ToggleMeteorBtn.Position = UDim2.new(0, 0, 0, 388)
+    ToggleMeteorBtn.BackgroundColor3 = Color3.fromRGB(55, 65, 81)
+    ToggleMeteorBtn.Text = "⚪ [OFF] Auto Spam Meteor Totem (สแปมเปิดรัวๆ + ออโต้ซื้อ 10 อันเมื่อหมด)"
+    ToggleMeteorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleMeteorBtn.TextSize = 13
+    ToggleMeteorBtn.Font = Enum.Font.GothamBold
+    ToggleMeteorBtn.Parent = PageAurora
+
+    local TMCorner = Instance.new("UICorner")
+    TMCorner.CornerRadius = UDim.new(0, 6)
+    TMCorner.Parent = ToggleMeteorBtn
+
+    -- ปุ่มวาร์ปไปจุดเปิดทันที
+    local WarpMeteorBtn = Instance.new("TextButton")
+    WarpMeteorBtn.Size = UDim2.new(1, 0, 0, 36)
+    WarpMeteorBtn.Position = UDim2.new(0, 0, 0, 438)
+    WarpMeteorBtn.BackgroundColor3 = Color3.fromRGB(39, 39, 52)
+    WarpMeteorBtn.Text = "📍 วาร์ปไปจุดเปิด Meteor Totem ทันที (5719.65, 194.86, 615.95)"
+    WarpMeteorBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+    WarpMeteorBtn.TextSize = 12
+    WarpMeteorBtn.Font = Enum.Font.GothamSemibold
+    WarpMeteorBtn.Parent = PageAurora
+
+    local WMCorner = Instance.new("UICorner")
+    WMCorner.CornerRadius = UDim.new(0, 6)
+    WMCorner.Parent = WarpMeteorBtn
+
+    -- 🛡️ ฟังก์ชัน NoClip ป้องกันตัวละครติดหินขณะวาร์ปเก็บแร่
+    local function setMeteorNoClip(enable)
+        if enable then
+            if not noClipConn then
+                noClipConn = RunService.Stepped:Connect(function()
+                    if not _G.PondHub_isMeteorRunning then
+                        if noClipConn then
+                            noClipConn:Disconnect()
+                            noClipConn = nil
+                        end
+                        return
+                    end
+                    local char = LocalPlayer.Character
+                    if char then
+                        for _, part in ipairs(char:GetDescendants()) do
+                            if part:IsA("BasePart") and part.CanCollide then
+                                part.CanCollide = false
+                            end
+                        end
+                    end
+                end)
+                table.insert(hubConnections, noClipConn)
+            end
+        else
+            if noClipConn then
+                noClipConn:Disconnect()
+                noClipConn = nil
+            end
+        end
+    end
+
+    -- 🎒 ฟังก์ชันตรวจสอบจำนวน Meteor Totem คงเหลือทั้งหมด (รองรับระบบ Stack ใน Replicator)
+    local function getMeteorTotemCount()
+        local total = 0
+        pcall(function()
+            local dc = require(ReplicatedStorage.client.legacyControllers.DataController)
+            local inv = dc.InventoryReplicator and dc.InventoryReplicator.Data and dc.InventoryReplicator.Data.Inventory
+            if inv then
+                for _, item in pairs(inv) do
+                    if item.name == "Meteor Totem" then
+                        local stack = item.sub and item.sub.Stack or 1
+                        total = total + stack
+                    end
+                end
+            end
+        end)
+        if total == 0 then
+            local bp = LocalPlayer:FindFirstChild("Backpack")
+            local char = LocalPlayer.Character
+            if bp then
+                for _, it in ipairs(bp:GetChildren()) do
+                    if it.Name == "Meteor Totem" then
+                        total = total + 1
+                    end
+                end
+            end
+            if char then
+                for _, it in ipairs(char:GetChildren()) do
+                    if it.Name == "Meteor Totem" then
+                        total = total + 1
+                    end
+                end
+            end
+        end
+        return total
+    end
+
+    -- 🛒 ฟังก์ชันสั่งซื้อ Meteor Totem อัตโนมัติ (ซื้อทีละ 10 อันเมื่อไม่มีหรือหมด)
+    local function buyMeteorTotems(amount)
+        amount = amount or 10
+        local purchaseRemote = ReplicatedStorage:FindFirstChild("events") and ReplicatedStorage.events:FindFirstChild("purchase")
+        if not purchaseRemote then
+            addLog("❌ [Meteor] ไม่พบ Remote คำสั่งซื้อ (events.purchase)", Color3.fromRGB(239, 68, 68))
+            return false
+        end
+
+        local coins = LocalPlayer.leaderstats and LocalPlayer.leaderstats["C$"] and LocalPlayer.leaderstats["C$"].Value or 0
+        if coins < 75000 then
+            addLog(string.format("❌ [Meteor] เงิน C$ ไม่พอซื้อ Meteor Totem! (มี C$ %s / ขาด %s)", tostring(coins), tostring(75000 * amount)), Color3.fromRGB(239, 68, 68))
+            notify("Meteor Totem", "เงิน C$ ไม่พอซื้อ Meteor Totem!", 3)
+            return false
+        end
+
+        LblMeteorStatus.Text = string.format("🛒 สถานะ Meteor: กำลังซื้อ Meteor Totem x%d...", amount)
+        LblMeteorStatus.TextColor3 = Color3.fromRGB(251, 191, 36)
+        LblMeteorStep.Text = string.format("🛒 กำลังซื้อ Meteor Totem x%d ชิ้น (75,000 C$/อัน)...", amount)
+        addLog(string.format("🛒 [Meteor] ไม่มี Meteor Totem! ซื้อเพิ่มอัตโนมัติ %d อัน...", amount), Color3.fromRGB(251, 191, 36))
+
+        local beforeCount = getMeteorTotemCount()
+        for i = 1, amount do
+            if not _G.PondHub_isMeteorRunning then break end
+            pcall(function()
+                purchaseRemote:FireServer("Meteor Totem", "Item", nil, 1)
+            end)
+            task.wait(0.12)
+        end
+
+        -- รอข้อมูล Replicator อัปเดตสูงสุด 3 วินาที
+        local startWait = tick()
+        while tick() - startWait < 3 do
+            if getMeteorTotemCount() > beforeCount then
+                break
+            end
+            task.wait(0.1)
+        end
+
+        local afterCount = getMeteorTotemCount()
+        if afterCount > beforeCount then
+            addLog(string.format("✅ [Meteor] ซื้อ Meteor Totem x%d สำเร็จ! (ในตัวมีทั้งหมด: %d อัน)", afterCount - beforeCount, afterCount), Color3.fromRGB(52, 211, 153))
+            notify("Meteor Totem", string.format("ซื้อ Meteor Totem x%d สำเร็จ! (รวม: %d อัน)", afterCount - beforeCount, afterCount), 2)
+            return true
+        else
+            addLog("⚠️ [Meteor] สั่งซื้อเสร็จสิ้น กำลังรอไอเทมเข้ากระเป๋า...", Color3.fromRGB(251, 191, 36))
+            return false
+        end
+    end
+
+    -- 🎒 ฟังก์ชันค้นหาและถือเฉพาะ METEOR TOTEM เท่านั้น (ไม่แตะต้อง Totem อื่นเด็ดขาด)
+    local function getOrEquipMeteorTotem()
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local hum = char:WaitForChild("Humanoid", 5)
+        local backpack = LocalPlayer:FindFirstChild("Backpack")
+
+        -- 1. หากในมือกำลังถือไอเทมอื่นอยู่ (ที่ไม่ใช่ Meteor Totem) ให้ปลดออกทันที
+        if char and hum then
+            local held = char:FindFirstChildOfClass("Tool")
+            if held and held.Name ~= "Meteor Totem" then
+                hum:UnequipTools()
+                task.wait(0.05)
+            end
+        end
+
+        -- 2. เช็กในมือก่อน: หากถือ Meteor Totem อยู่แล้ว
+        local tool = char and char:FindFirstChild("Meteor Totem")
+        if tool then
+            return tool
+        end
+
+        -- 3. หากในมือยังไม่มี ให้ค้นหา Meteor Totem ในกระเป๋าเท่านั้น
+        if backpack and hum then
+            local bpTool = backpack:FindFirstChild("Meteor Totem")
+            if bpTool then
+                hum:EquipTool(bpTool)
+                for _ = 1, 10 do
+                    task.wait(0.05)
+                    if bpTool.Parent == char then
+                        return bpTool
+                    end
+                end
+                return char:FindFirstChild("Meteor Totem") or bpTool
+            end
+        end
+
+        -- หากไม่มี Meteor Totem ให้คืนค่า nil (ไม่สลับไปใช้ Totem อื่นเด็ดขาด)
+        return nil
+    end
+
+    -- 🔍 ฟังก์ชันค้นหา ProximityPrompt ของหลุมอุกกาบาต
+    local function getCraterPrompts()
+        local prompts = {}
+
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj.Name == "MeteorCrater" or obj.Name:lower():find("crater") then
+                for _, descendant in ipairs(obj:GetDescendants()) do
+                    if descendant:IsA("ProximityPrompt") then
+                        local parentPart = descendant.Parent
+                        local pos = parentPart:IsA("BasePart") and parentPart.Position or (parentPart:IsA("Model") and parentPart:GetPivot().Position)
+                        if pos then
+                            table.insert(prompts, { prompt = descendant, pos = pos, item = parentPart })
+                        end
+                    end
+                end
+            end
+        end
+
+        local active = workspace:FindFirstChild("active")
+        local meteorFolder = active and active:FindFirstChild("meteorItems")
+        if meteorFolder then
+            for _, item in ipairs(meteorFolder:GetChildren()) do
+                local prompt = nil
+                for _, d in ipairs(item:GetDescendants()) do
+                    if d:IsA("ProximityPrompt") then
+                        prompt = d
+                        break
+                    end
+                end
+                if not prompt and item:IsA("ProximityPrompt") then
+                    prompt = item
+                end
+                local pos = item:IsA("BasePart") and item.Position or (item:IsA("Model") and item:GetPivot().Position)
+                if pos then
+                    table.insert(prompts, { prompt = prompt, pos = pos, item = item })
+                end
+            end
+        end
+
+        return prompts
+    end
+
+    -- 💎 ฟังก์ชันวาร์ปเก็บของในหลุมอุกกาบาต
+    local function collectCraterItems()
+        local prompts = getCraterPrompts()
+        if #prompts == 0 then return 0 end
+
+        addLog(string.format("🎯 [Meteor] พบแร่ในหลุม %d ชิ้น! กำลังวาร์ปเก็บ...", #prompts), Color3.fromRGB(251, 191, 36))
+        local collected = 0
+
+        for idx, pData in ipairs(prompts) do
+            if not _G.PondHub_isMeteorRunning then break end
+            local root = getRoot()
+            if not root then break end
+
+            teleportPlayer(CFrame.new(pData.pos + Vector3.new(0, 2, 0)))
+            task.wait(0.12)
+
+            if pData.prompt then
+                pcall(function()
+                    pData.prompt.Enabled = true
+                    pData.prompt.RequiresLineOfSight = false
+                    pData.prompt.MaxActivationDistance = 9999
+                    pData.prompt.HoldDuration = 0
+                    if fireproximityprompt then
+                        fireproximityprompt(pData.prompt, 0)
+                    else
+                        pData.prompt:InputHoldBegin()
+                        task.wait(0.05)
+                        pData.prompt:InputHoldEnd()
+                    end
+                end)
+                collected = collected + 1
+                addLog(string.format("✨ [Meteor] เก็บแร่ชิ้นที่ [%d/%d] เรียบร้อย!", idx, #prompts), Color3.fromRGB(52, 211, 153))
+            end
+            task.wait(0.08)
+        end
+
+        return collected
+    end
+
+    -- 🔄 ลูปการทำงานหลัก: สแปมเปิด Meteor Totem รัวๆ ต่อเนื่อง + ตรวจจับเก็บแร่ + ซื้อเพิ่มอัตโนมัติ
+    local function startMeteorLoop()
+        task.spawn(function()
+            local loopSuccess, loopErr = pcall(function()
+                setMeteorNoClip(true)
+                addLog("🌟 [Meteor] เริ่มต้นระบบ Auto Spam Meteor Totem รัวๆ ต่อเนื่อง!", Color3.fromRGB(251, 146, 60))
+                notify("Meteor Totem", "เริ่มต้นระบบสแปมเปิด Meteor Totem รัวๆ ต่อเนื่อง!", 3)
+
+                local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                local root = char:WaitForChild("HumanoidRootPart", 5)
+
+                -- วาร์ปไปจุดเปิด Meteor Totem ทันที
+                if root and (root.Position - STAND_POSITION).Magnitude > 30 then
+                    teleportPlayer(STAND_CFRAME)
+                    task.wait(0.3)
+                end
+
+                local lastCraterCheck = 0
+
+                while _G.PondHub_isMeteorRunning do
+                    -- 1. หาและถือเฉพาะ Meteor Totem
+                    local tool = getOrEquipMeteorTotem()
+
+                    if not tool then
+                        -- ถ้าไม่มีหรือหมด ให้ซื้อทันที 10 อัน
+                        local currentCount = getMeteorTotemCount()
+                        if currentCount == 0 then
+                            buyMeteorTotems(10)
+                            task.wait(0.3)
+                            tool = getOrEquipMeteorTotem()
+                        end
+                    end
+
+                    if tool and tool.Parent == (LocalPlayer.Character or char) then
+                        local remaining = getMeteorTotemCount()
+                        LblMeteorStatus.Text = "🎯 สถานะ Meteor: กำลังสแปมเปิดรัวๆ..."
+                        LblMeteorStatus.TextColor3 = Color3.fromRGB(16, 185, 129)
+
+                        -- 2. สแปมกด Activate Meteor Totem รัวๆ!
+                        pcall(function()
+                            tool:Activate()
+                        end)
+                        pcall(function()
+                            if VirtualInputManager then
+                                local cam = workspace.CurrentCamera
+                                local vp = cam and cam.ViewportSize or Vector2.new(800, 600)
+                                VirtualInputManager:SendMouseButtonEvent(vp.X * 0.85, vp.Y * 0.15, 0, true, game, 0)
+                                VirtualInputManager:SendMouseButtonEvent(vp.X * 0.85, vp.Y * 0.15, 0, false, game, 0)
+                            end
+                        end)
+
+                        totalSpamCount = totalSpamCount + 1
+                        LblMeteorStep.Text = string.format("⚡ สแปมเปิด: Meteor Totem (คงเหลือ: ~%d อัน | สแปม %d ครั้ง)", remaining, totalSpamCount)
+                        LblMeteorStats.Text = string.format("💎 เก็บแร่: %d ชิ้น | ⚡ สแปม: %d ครั้ง | 🎒 คงเหลือ: %d อัน", totalMeteorCollected, totalSpamCount, remaining)
+                    else
+                        LblMeteorStatus.Text = "⚠️ สถานะ Meteor: ไม่มี Meteor Totem ในกระเป๋า (หรือเงินไม่พอ)"
+                        LblMeteorStatus.TextColor3 = Color3.fromRGB(239, 68, 68)
+                        LblMeteorStep.Text = "⚠️ ไม่พบ Meteor Totem ในกระเป๋า (กำลังรอเติม/ซื้อ)..."
+                        task.wait(0.8)
+                    end
+
+                    if not _G.PondHub_isMeteorRunning then break end
+
+                    -- 3. ตรวจจับหลุมอุกกาบาตทุกๆ ~0.8 วินาที
+                    if tick() - lastCraterCheck >= 0.8 then
+                        lastCraterCheck = tick()
+                        local prompts = getCraterPrompts()
+                        if #prompts > 0 then
+                            LblMeteorStep.Text = string.format("🎯 พบหลุมอุกกาบาต %d ชิ้น! กำลังวาร์ปเก็บ...", #prompts)
+                            task.wait(0.2)
+                            local count = collectCraterItems()
+                            if count > 0 then
+                                totalMeteorCollected = totalMeteorCollected + count
+                                local rem = getMeteorTotemCount()
+                                LblMeteorStats.Text = string.format("💎 เก็บแร่: %d ชิ้น | ⚡ สแปม: %d ครั้ง | 🎒 คงเหลือ: %d อัน", totalMeteorCollected, totalSpamCount, rem)
+                            end
+
+                            -- วาร์ปกลับจุดเดิมเพื่อสแปมต่อทันที
+                            if _G.PondHub_isMeteorRunning then
+                                teleportPlayer(STAND_CFRAME)
+                                task.wait(0.2)
+                            end
+                        end
+                    end
+
+                    task.wait(0.12)
+                end
+            end)
+
+            if not loopSuccess then
+                warn("Meteor loop error: " .. tostring(loopErr))
+                addLog("❌ [Meteor Error] " .. tostring(loopErr), Color3.fromRGB(239, 68, 68))
+            end
+
+            _G.PondHub_isMeteorRunning = false
+            setMeteorNoClip(false)
+            ToggleMeteorBtn.BackgroundColor3 = Color3.fromRGB(55, 65, 81)
+            ToggleMeteorBtn.Text = "⚪ [OFF] Auto Spam Meteor Totem (สแปมเปิดรัวๆ + ออโต้ซื้อ 10 อันเมื่อหมด)"
+            LblMeteorStatus.Text = "🎯 สถานะ Meteor: ปิดอยู่ (Standby)"
+            LblMeteorStatus.TextColor3 = Color3.fromRGB(156, 163, 175)
+            LblMeteorStep.Text = "📍 จุดเปิด Meteor: 5719.65, 194.86, 615.95"
+            addLog(string.format("⏹ [Meteor] หยุดระบบ Auto Spam Meteor Totem (สแปมไป %d ครั้ง | เก็บแร่ได้ %d ชิ้น)", totalSpamCount, totalMeteorCollected), Color3.fromRGB(251, 146, 60))
+        end)
+    end
+
+    -- Event Connections
+    ToggleMeteorBtn.MouseButton1Click:Connect(function()
+        _G.PondHub_isMeteorRunning = not _G.PondHub_isMeteorRunning
+        ToggleMeteorBtn.BackgroundColor3 = _G.PondHub_isMeteorRunning and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(55, 65, 81)
+        ToggleMeteorBtn.Text = _G.PondHub_isMeteorRunning and "🟢 [ON] Auto Spam Meteor Totem กำลังทำงาน... (คลิกเพื่อหยุด)" or "⚪ [OFF] Auto Spam Meteor Totem (สแปมเปิดรัวๆ + ออโต้ซื้อ 10 อันเมื่อหมด)"
+        if _G.PondHub_isMeteorRunning then
+            startMeteorLoop()
+        end
+    end)
+
+    WarpMeteorBtn.MouseButton1Click:Connect(function()
+        teleportPlayer(STAND_CFRAME)
+        addLog("📍 วาร์ปไปยังจุดเปิด Meteor Totem (5719.65, 194.86, 615.95) เรียบร้อย", Color3.fromRGB(96, 165, 250))
+        notify("Meteor Totem", "วาร์ปมายังจุดเปิด Totem เรียบร้อย!", 2)
+    end)
+end
 
 -- ===================================================================
 -- ⚡ TAB 6: OLYMPUS ROD TELEPORT (วาร์ปทำเบ็ดโอลิมปัส ชั้น 1 - 6)
@@ -2330,7 +2937,7 @@ local function initMerlinSessionAndBuy(needLucky, needLure, needInsight, isManua
         return false
     end
     
-    if isPearlRunning or isMirrorRunning or isSwordRunning or isAuroraRunning then
+    if isPearlRunning or isMirrorRunning or isSwordRunning or isAuroraRunning or _G.PondHub_isMeteorRunning then
         addLog("⚠️ มีฟังก์ชันอื่นกำลังทำงานอยู่ ไม่สามารถวาร์ปไปหา Merlin ได้ในขณะนี้", Color3.fromRGB(251, 191, 36))
         if isManual then notify("Merlin Buffs", "มีงานอื่นทำงานอยู่ กรุณารอหรือหยุดงานเดิมก่อน", 3) end
         isBuyingMerlin = false
@@ -2340,7 +2947,7 @@ local function initMerlinSessionAndBuy(needLucky, needLure, needInsight, isManua
     local char = LocalPlayer.Character
     local origCFrame = root.CFrame
     
-    addLog("🧙‍♂️ กำลังวาร์ปไปคุยและซื้อบัฟกับ Merlin (Sunstone Island)...", Color3.fromRGB(251, 191, 36))
+    addLog("🧙♂️ กำลังวาร์ปไปคุยและซื้อบัฟกับ Merlin (Sunstone Island)...", Color3.fromRGB(251, 191, 36))
     if isManual then notify("Merlin Buffs", "กำลังวาร์ปไปหา Merlin...", 3) end
     
     ProximityPromptService.Enabled = true
@@ -3170,7 +3777,7 @@ ToggleMerlinAuto.MouseButton1Click:Connect(function()
     ToggleMerlinAuto.Text = autoRenewMerlin and "🟢 [ON] Auto-Renew ทำงานอยู่ (คลิกเพื่อปิด)" or "⚪ [OFF] Auto-Renew ปิดอยู่ (คลิกเพื่อเปิด)"
     LblMerlinMode.Text = "🌐 สถานะ Auto-Renew: " .. (autoRenewMerlin and "เปิดทำงาน (Active)" or "ปิดอยู่ (Disabled)")
     LblMerlinMode.TextColor3 = autoRenewMerlin and Color3.fromRGB(52, 211, 153) or Color3.fromRGB(156, 163, 175)
-    addLog("🧙‍♂️ Auto-Renew Merlin: " .. (autoRenewMerlin and "เปิดใช้งาน" or "ปิดใช้งาน"), Color3.fromRGB(167, 139, 250))
+    addLog("🧙♂️ Auto-Renew Merlin: " .. (autoRenewMerlin and "เปิดใช้งาน" or "ปิดใช้งาน"), Color3.fromRGB(167, 139, 250))
 end)
 
 -- ปุ่มคลิกสลับสถานะเปิด / ปิด Auto Buy เหยื่อ
@@ -3600,7 +4207,7 @@ local function startAutoMovement()
         setupCharacter(char)
     end))
 
-    addLog("🏃‍♂️ ล็อกความเร็ววิ่ง 50 และกระโดดสูง 100 ถาวร (แก้ปัญหาวิ่งช้าสลับเร็วเรียบร้อย)", Color3.fromRGB(52, 211, 153))
+    addLog("🏃♂️ ล็อกความเร็ววิ่ง 50 และกระโดดสูง 100 ถาวร (แก้ปัญหาวิ่งช้าสลับเร็วเรียบร้อย)", Color3.fromRGB(52, 211, 153))
 end
 -- ===================================================================
 local function startAutoFishRadar()
@@ -3718,14 +4325,15 @@ task.spawn(function()
     checkMerlinBuffs()
     startAutoFishRadar()
     startAutoMovement()
-    addLog("🔒 Pond Hub โหลดสำเร็จ! (🎣 ตกปลา [Q/F] | 🔮 รีไข่มุก | 🏃‍♂️ วิ่ง 50/โดด 100)", Color3.fromRGB(167, 139, 250))
+    addLog("⬛ ข้ามหน้าต่างโหลดสีดำ (Skip Loading Screen) สำเร็จเรียบร้อย", Color3.fromRGB(52, 211, 153))
+    addLog("🔒 Pond Hub โหลดสำเร็จ! (🎣 ตกปลา [Q/F] | 🔮 รีไข่มุก | 🏃♂️ วิ่ง 50/โดด 100)", Color3.fromRGB(167, 139, 250))
     notify("Pond Hub", "โหลดสำเร็จ! กด [ Z ] เปิด/ปิด UI | [ Q ] สลับตกปลา | [ F ] สลับล็อกตำแหน่ง", 4)
     
     while true do
         task.wait(10)
         local buffs = checkMerlinBuffs()
         if autoRenewMerlin and not isBuyingMerlin then
-            local isOtherBusy = isPearlRunning or isMirrorRunning or isSwordRunning or isAuroraRunning
+            local isOtherBusy = isPearlRunning or isMirrorRunning or isSwordRunning or isAuroraRunning or _G.PondHub_isMeteorRunning
             if not isOtherBusy or hasMerlinSession then
                 local needLucky = not buffs.Lucky.active or buffs.Lucky.remaining <= 120
                 local needInsight = not buffs.Insight.active or buffs.Insight.remaining <= 120
