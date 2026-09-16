@@ -2101,6 +2101,7 @@ do
                         pcall(function()
                             tool:Activate()
                         end)
+                    task.wait(0.5)
                         pcall(function()
                             if VirtualInputManager then
                                 local cam = workspace.CurrentCamera
