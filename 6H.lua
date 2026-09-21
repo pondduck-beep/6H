@@ -674,8 +674,8 @@ end
 local function resetDefaultConfig()
     Config.AutoSave = true
     Config.Fishing = {
-        AutoEquipRod = false,
-        InstantCast = false,
+        AutoEquipRod = true,
+        InstantCast = true,
         InstantBobber = false,
         AutoShake = true,
         InstantAutoReel = true,
