@@ -617,7 +617,7 @@ local Config = {
     AutoSave = true,
     LastSaved = "ยังไม่ได้บันทึก",
     Fishing = {
-        AutoEquipRod = false,
+        AutoEquipRod = true,
         InstantCast = false,
         InstantBobber = false,
         AutoShake = true,
@@ -675,7 +675,7 @@ local function resetDefaultConfig()
     Config.AutoSave = true
     Config.Fishing = {
         AutoEquipRod = true,
-        InstantCast = true,
+        InstantCast = false,
         InstantBobber = false,
         AutoShake = true,
         InstantAutoReel = true,
