@@ -92,8 +92,9 @@ do
         end)
 
         pcall(function()
-            -- 6. ปลดล็อก CoreGui และระบบมุมกล้อง
+            -- 6. ปลดล็อก CoreGui และระบบมุมกล้อง (แต่ปิด Backpack ของ Roblox เพื่อป้องกัน Hotbar ซ้อนทับกับ Custom UI ของ Fisch)
             StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
+            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
             if workspace.CurrentCamera then
                 workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
             end
@@ -213,6 +214,19 @@ _G.PondHub_Cleanup = function()
         end
     end)
 end
+
+-- ===================================================================
+-- 🛡️ ANTI-AFK (ป้องกันการหลุดจากเกมเมื่ออยู่นิ่งเกิน 20 นาที)
+-- ===================================================================
+pcall(function()
+    local VirtualUser = game:GetService("VirtualUser")
+    LocalPlayer.Idled:Connect(function()
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.zero)
+        end)
+    end)
+end)
 
 local Net = require(ReplicatedStorage:WaitForChild("packages"):WaitForChild("Net"))
 local dialogInteract = Net:RemoteFunction("DialogInteract", -1)
@@ -659,6 +673,8 @@ local function loadConfigFile()
                         Config.Fishing[k] = v
                     end
                 end
+                -- บังคับให้ AutoEquipRod เปิดใช้งานเป็นค่าเริ่มต้นเสมอ
+                Config.Fishing.AutoEquipRod = true
                 if data.AutoSave ~= nil then Config.AutoSave = data.AutoSave end
                 if data.LastSaved then Config.LastSaved = data.LastSaved end
                 if data.BaitShop and data.BaitShop.SelectedBait then
@@ -772,7 +788,7 @@ createTab("Config", "เซฟคอนฟิก", "💾", 7)
 
     -- States การทำงานตกปลา (ซิงค์กับ Config)
     local States = {
-        AutoEquipRod = Config.Fishing.AutoEquipRod or false,
+        AutoEquipRod = true,
         InstantCast = Config.Fishing.InstantCast or false,
         InstantBobber = Config.Fishing.InstantBobber or false,
         AutoShake = (Config.Fishing.AutoShake ~= false),
@@ -1116,9 +1132,13 @@ createTab("Config", "เซฟคอนฟิก", "💾", 7)
 
     -- 🎒 ลูป Auto Equip Rod
     task.spawn(function()
+        task.wait(1.2)
+        if States.AutoEquipRod then
+            ensureEquippedRod()
+        end
         while true do
             task.wait(0.5)
-            if States.AutoEquipRod and States.InstantCast then
+            if States.AutoEquipRod then
                 local isBusy = isPearlRunning or isMirrorRunning or isSwordRunning or isAuroraRunning or _G.PondHub_isMeteorRunning
                 if not isBusy then
                     ensureEquippedRod()
@@ -4391,6 +4411,7 @@ task.spawn(function()
     checkMerlinBuffs()
     startAutoFishRadar()
     startAutoMovement()
+    pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false) end)
     addLog("⬛ ข้ามหน้าต่างโหลดสีดำ (Skip Loading Screen) สำเร็จเรียบร้อย", Color3.fromRGB(52, 211, 153))
     addLog("🔒 Pond Hub โหลดสำเร็จ! (🎣 ตกปลา [Q/F] | 🔮 รีไข่มุก | 🏃♂️ วิ่ง 50/โดด 100)", Color3.fromRGB(167, 139, 250))
     notify("Pond Hub", "โหลดสำเร็จ! กด [ Z ] เปิด/ปิด UI | [ Q ] สลับตกปลา | [ F ] สลับล็อกตำแหน่ง", 4)
