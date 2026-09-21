@@ -2934,18 +2934,25 @@ MinBtn.MouseButton1Click:Connect(function()
     MainFrame.Size = isMinimized and UDim2.new(0, 660, 0, 48) or UDim2.new(0, 660, 0, 660)
 end)
 
--- 🔄 Rejoin Button Event
+-- 🔄 Rejoin Button Event (พร้อมระบบป้องกัน Error 773 เมื่ออยู่ใน Sub-Place)
 RejoinBtn.MouseButton1Click:Connect(function()
     addLog("🔄 กำลังเชื่อมต่อเข้าเซิร์ฟเวอร์ใหม่อัตโนมัติ...", Color3.fromRGB(96, 165, 250))
     notify("Rejoin Server", "กำลังเชื่อมต่อเข้าเซิร์ฟเวอร์ใหม่...", 3)
     task.wait(0.5)
     pcall(function()
+        local MAIN_PLACE_ID = 16732694052 -- Place ID แมพหลักของ Fisch
         if #Players:GetPlayers() <= 1 then
             LocalPlayer:Kick("\n[Rejoin] กำลังเข้าเซิร์ฟเวอร์ใหม่...")
             task.wait(0.2)
             TeleportService:Teleport(game.PlaceId, LocalPlayer)
         else
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+            -- พยายามเข้าห้องเดิม หากติด Restricted (Error 773) ให้สลับไปแมพหลักแทน
+            local success = pcall(function()
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+            end)
+            if not success then
+                TeleportService:Teleport(MAIN_PLACE_ID, LocalPlayer)
+            end
         end
     end)
 end)
